@@ -56,6 +56,27 @@ runways from three days to "no recent demand". Re-run with `--reset` to wipe and
 > running server keeps using the previous project — which shows up as "Invalid login credentials"
 > rather than as a configuration error.
 
+Already have a database from an earlier version? Run [`scripts/upgrade.sql`](scripts/upgrade.sql)
+instead of the full schema. It applies only the later migrations and is safe to run twice.
+
+## Roles and access
+
+Three membership states, all enforced by row-level security rather than by hiding buttons:
+
+| State | Can do |
+| --- | --- |
+| **manager** | Everything: catalogue, warehouses, purchasing, document reversal, team administration |
+| **staff** | Record and validate receipts, deliveries, transfers and adjustments; read everything else |
+| **pending** | Nothing. Every query returns empty until a manager grants a role |
+
+Registering an account gives no access to anything. A new person registers, enters the workspace
+invite code to request access, and a manager grants them a role from the **Team** screen. Membership
+is the gate, not email verification — an unverified address cannot read a single row of stock.
+
+A workspace always keeps at least one manager, and nobody can revoke their own manager access.
+Removing someone leaves the documents and ledger rows they recorded untouched, because stock
+accounting has to stay auditable.
+
 Step 4 creates `admin`, `manager`, and `staff`, password `StockSense#2026`, pre-confirmed so they
 work while email confirmation stays on for real sign-ups. Skip it and register an account instead if
 you prefer.

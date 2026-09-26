@@ -3,18 +3,19 @@ import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, Building2,
   ClipboardCheck, Gauge, History, LogOut, Menu, Package, Plus, Search,
   TriangleAlert, UserRound, Warehouse, X, Moon, Sun, Sparkles, Archive, Trash2, Pencil,
-  Timer, RotateCcw, ShieldCheck, Info, Lock, PanelLeftClose, PanelLeftOpen,
+  Timer, RotateCcw, ShieldCheck, Info, Lock, PanelLeftClose, PanelLeftOpen, Users, UserCheck, UserMinus, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeWarehouse } from "@/lib/warehouse-ai.functions";
+import { registerAccount } from "@/lib/account.functions";
 import { useServerFn } from "@tanstack/react-start";
 import type { User } from "@supabase/supabase-js";
 import { buildDemand, daysToStockout, formatRunway, runwayTone, suggestedQuantity, COVER_DAYS, DEMAND_WINDOW_DAYS, NO_DEMAND, RISK_DAYS, type DemandLeg, type ProductDemand } from "@/lib/replenishment";
 import { canReverse, findReversal, parseReversal, reverseOperation } from "@/lib/reversal";
 import type { WarehouseAnalysis } from "@/lib/warehouse-analysis";
 
-type View = "dashboard" | "replenishment" | "insights" | "products" | "receipts" | "deliveries" | "transfers" | "adjustments" | "history" | "warehouses" | "profile";
+type View = "dashboard" | "replenishment" | "insights" | "products" | "receipts" | "deliveries" | "transfers" | "adjustments" | "history" | "warehouses" | "team" | "profile";
 type Workspace = { id: string; name: string; join_code: string };
 type Product = { id: string; name: string; sku: string; category: string; unit: string; reorder_point: number; archived: boolean };
 type Location = { id: string; name: string; code: string; warehouse_id: string; warehouses?: { name: string } | null };
@@ -38,6 +39,10 @@ const nav: { label: string; view: View; icon: typeof Gauge }[] = [
   { label: "Receipts", view: "receipts", icon: ArrowDownToLine }, { label: "Deliveries", view: "deliveries", icon: ArrowUpFromLine },
   { label: "Internal transfers", view: "transfers", icon: ArrowLeftRight }, { label: "Adjustments", view: "adjustments", icon: ClipboardCheck },
   { label: "Move history", view: "history", icon: History }, { label: "Warehouses", view: "warehouses", icon: Warehouse },
+];
+/** Manager-only screens, appended to the navigation for managers only. */
+const managerNav: { label: string; view: View; icon: typeof Gauge }[] = [
+  { label: "Team", view: "team", icon: Users },
 ];
 
 function ThemeToggle() {
@@ -76,6 +81,7 @@ export function InventoryApp() {
   const [demandLegs, setDemandLegs] = useState<DemandLeg[]>([]);
   const [actors, setActors] = useState<Record<string, string>>({});
   const [role, setRole] = useState<Role>("staff");
+  const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -84,6 +90,9 @@ export function InventoryApp() {
     const { data: memberships } = await supabase.from("workspace_members").select("role, workspace_id, workspaces(id,name,join_code)").limit(1);
     const membership = memberships?.[0];
     const selected = membership?.workspaces as Workspace | null | undefined;
+    // A pending member can read their own membership row but not the workspace behind it, which is
+    // how "waiting for approval" is told apart from "not in a workspace at all".
+    setPending(membership?.role === "pending");
     if (!selected) { setWorkspace(null); setDataLoading(false); return; }
     setWorkspace(selected);
     setRole(membership?.role === "manager" ? "manager" : "staff");
@@ -130,6 +139,7 @@ export function InventoryApp() {
   if (authLoading) return <div className="auth-grid grid min-h-screen place-items-center text-muted-foreground">Loading StockSense…</div>;
   if (!user) return <AuthScreen />;
   if (dataLoading) return <div className="auth-grid grid min-h-screen place-items-center text-muted-foreground">Loading inventory…</div>;
+  if (pending && !workspace) return <PendingApproval user={user} onRefresh={load} />;
   if (!workspace) return <WorkspaceSetup onReady={load} />;
 
   const quantity = (id: string) => balances.filter((b) => b.product_id === id).reduce((n, b) => n + Number(b.quantity), 0);
@@ -143,7 +153,7 @@ export function InventoryApp() {
           overlay would be useless. */}
       <aside className={`${sidebar ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} app-sidebar w-64 shrink-0 flex-col transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen ${collapsed ? "lg:w-[72px]" : "lg:w-64"}`}>
         <div className={`flex h-20 items-center gap-3 border-b px-5 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}><div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"><Boxes className="size-5" /></div><div className={collapsed ? "lg:hidden" : ""}><div className="font-display text-base font-semibold">StockSense</div><div className="text-[11px] text-muted-foreground">Inventory workspace</div></div><Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={() => setSidebar(false)}><X /></Button></div>
-        <div className={`px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground ${collapsed ? "lg:hidden" : ""}`}>Workspace</div><nav className={`flex-1 space-y-1 overflow-y-auto px-3 pb-4 ${collapsed ? "lg:pt-7" : ""}`}>{nav.map((item) => <Button key={item.view} variant="ghost" title={item.label} className={`h-11 w-full justify-start gap-3 ${collapsed ? "lg:justify-center lg:px-0" : ""} ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon /><span className={collapsed ? "lg:hidden" : ""}>{item.label}</span></Button>)}</nav>
+        <div className={`px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground ${collapsed ? "lg:hidden" : ""}`}>Workspace</div><nav className={`flex-1 space-y-1 overflow-y-auto px-3 pb-4 ${collapsed ? "lg:pt-7" : ""}`}>{[...nav, ...(can.warehouses ? managerNav : [])].map((item) => <Button key={item.view} variant="ghost" title={item.label} className={`h-11 w-full justify-start gap-3 ${collapsed ? "lg:justify-center lg:px-0" : ""} ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon /><span className={collapsed ? "lg:hidden" : ""}>{item.label}</span></Button>)}</nav>
         <div className="border-t p-3"><Button variant="ghost" title={`${user.user_metadata['display_name'] || user.email} · ${role}`} className={`mb-1 h-auto w-full justify-start py-2 ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={() => setView("profile")}><UserRound /><span className={`min-w-0 text-left ${collapsed ? "lg:hidden" : ""}`}><span className="block truncate">{user.user_metadata['display_name'] || user.email}</span><span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{role}</span></span></Button><Button variant="ghost" title="Log out" className={`w-full justify-start text-muted-foreground ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={async () => { await supabase.auth.signOut(); }}><LogOut /><span className={collapsed ? "lg:hidden" : ""}>Log out</span></Button></div>
       </aside>
       {sidebar && <Button aria-label="Close menu" variant="ghost" className="fixed inset-0 z-30 h-auto w-full rounded-none bg-background/70 lg:hidden" onClick={() => setSidebar(false)} />}
@@ -160,6 +170,7 @@ export function InventoryApp() {
           {["receipts","deliveries","transfers","adjustments"].includes(view) && <Operations {...contentProps} kind={view === "receipts" ? "receipt" : view === "deliveries" ? "delivery" : view === "transfers" ? "transfer" : "adjustment"} />}
           {view === "history" && <HistoryView {...contentProps} />}
           {view === "warehouses" && <Warehouses {...contentProps} />}
+          {view === "team" && (can.warehouses ? <Team {...contentProps} /> : <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="size-4"/>{STAFF_LOCKED}</p>)}
           {view === "profile" && <Profile user={user} workspace={workspace} role={role} />}
           {busy && <div className="modal-overlay fixed inset-0 z-50 grid place-items-center"><div className="modal-panel px-6 py-5 text-sm">Updating inventory…</div></div>}
         </div>
@@ -204,6 +215,7 @@ const DEMO_LOGINS_ENABLED = import.meta.env.DEV || import.meta.env['VITE_ENABLE_
 const DEMO_SETUP_HINT = "Run “bun run scripts/create-demo-users.ts” to create them. If you just changed .env, restart the dev server — Vite only reads it at startup.";
 
 function AuthScreen() {
+  const register = useServerFn(registerAccount);
   const [mode, setMode] = useState<"login"|"signup"|"forgot">("login"); const [identifier,setIdentifier]=useState(""); const [password,setPassword]=useState(""); const [name,setName]=useState(""); const [notice,setNotice]=useState<Notice|null>(null); const [busy,setBusy]=useState(false);
   const [pending,setPending]=useState(""); const [demoNotice,setDemoNotice]=useState<Notice|null>(null);
   const fail=(text:string)=>setNotice({tone:"error",text}); const inform=(text:string)=>setNotice({tone:"info",text});
@@ -236,22 +248,87 @@ function AuthScreen() {
       if(isUsernameAddress(address)){ fail("A reset link needs a real email address — a username has no inbox to send it to."); setBusy(false); return; }
       const {error}=await supabase.auth.resetPasswordForEmail(address,{redirectTo:`${window.location.origin}/reset-password`});
       if(error)fail(error.message); else inform("Check your email for the secure reset link."); }
-    else if(mode==="signup") { const {data,error}=await supabase.auth.signUp({email:address,password,options:{emailRedirectTo:window.location.origin,data:{display_name:name.trim()||identifier.trim()}}});
-      if(error)fail(error.message);
-      // A session here means the account is live and the auth listener drops straight into the
-      // workspace. No session means the backend still demands email confirmation, so try signing
-      // in anyway and only then report what is actually blocking.
-      else if(!data.session){ const {error:signInError}=await supabase.auth.signInWithPassword({email:address,password});
-        if(!signInError)setNotice(null);
-        else if(/confirm/i.test(signInError.message))fail(`Account created, but this backend still requires email confirmation${isUsernameAddress(address)?", and a username has no inbox to confirm from":""}. ${CONFIRM_HINT}`);
-        else fail(signInError.message); }
+    else if(mode==="signup") {
+      // Registration goes through a server function that creates the account already confirmed, so
+      // it completes in one step rather than parking the person on "check your email". A new account
+      // holds no workspace membership, so it can read nothing until a manager grants a role.
+      try { await register({data:{identifier:identifier.trim(),password,displayName:name.trim()||identifier.trim()}}); }
+      catch(err){ fail(err instanceof Error?err.message:"Could not create the account."); setBusy(false); return; }
+      const {error:signInError}=await supabase.auth.signInWithPassword({email:address,password});
+      if(signInError)fail(`Account created, but signing in failed: ${signInError.message}`); else setNotice(null);
     }
     else { const {error}=await supabase.auth.signInWithPassword({email:address,password});
       if(error)fail(/confirm/i.test(error.message)?`This account has not been confirmed yet. ${CONFIRM_HINT}`:error.message); }
     setBusy(false);
   }
   return <div className="auth-grid min-h-screen"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 md:px-10"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-md bg-primary text-primary-foreground"><Boxes className="size-5" /></div><h1 className="font-display text-xl font-semibold">StockSense</h1></div><ThemeToggle /></div><div className="mx-auto grid min-h-[calc(100vh-100px)] w-full max-w-6xl items-center gap-12 px-5 pb-12 md:grid-cols-[1fr_430px] md:px-10"><section className="max-w-xl"><p className="eyebrow mb-6">Inventory, in focus</p><h2 className="font-display text-4xl font-semibold leading-[1.2] md:text-5xl">Clarity in every movement.</h2><p className="mt-6 max-w-md text-base leading-7 text-muted-foreground">Know what’s on hand, what needs attention, and where everything is going.</p><div className="mt-10 flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="border-l-2 border-primary pl-3">Live stock</span><span className="border-l-2 border-primary pl-3">Every location</span><span className="border-l-2 border-primary pl-3">A clear record</span></div>
-  {DEMO_LOGINS_ENABLED&&<div className="mt-12"><p className="eyebrow mb-3">Demo accounts</p><p className="mb-4 max-w-md text-xs leading-5 text-muted-foreground">One click signs you in. Each role has different permissions, enforced by the database rather than by hiding buttons.</p>{demoNotice&&<div className="mb-4 max-w-md"><NoticeBox {...demoNotice}/></div>}<div className="grid gap-3 sm:grid-cols-3">{DEMO_ACCOUNTS.map(a=><button key={a.username} type="button" onClick={()=>enterAs(a)} disabled={!!pending} aria-label={`Sign in as ${a.name}, ${a.role}`} className={`demo-card ${pending===a.username?"demo-card-active":""}`}><span className="flex items-center gap-2.5"><span className="demo-avatar">{a.initial}</span><span className="min-w-0"><span className="block truncate text-sm font-semibold">{a.name}</span><span className="block text-[11px] text-muted-foreground">@{a.username}</span></span></span><span className={`tag mt-3 ${a.role==="manager"?"tag-in":"tag-draft"}`}>{a.role}</span><span className="mt-2 block text-[11px] leading-4 text-muted-foreground">{a.blurb}</span><span className="demo-cta">{pending===a.username?"Signing in…":"Enter workspace →"}</span></button>)}</div></div>}</section><form onSubmit={submit} className="auth-surface p-7 md:p-9"><p className="eyebrow mb-3">Your workspace</p><h2 className="font-display text-2xl font-semibold">{mode==="login"?"Welcome back":mode==="signup"?"Create your account":"Reset password"}</h2><p className="mb-7 mt-2 text-sm text-muted-foreground">{mode==="forgot"?"We’ll email you a secure recovery link.":"Sign in to pick up where you left off."}</p>{mode==="signup"&&<label className="mb-4 block text-xs font-medium">Full name<input className="field mt-2" maxLength={100} value={name} onChange={e=>setName(e.target.value)} required /></label>}<label className="mb-4 block text-xs font-medium">{mode==="forgot"?"Email":"Email or username"}<input className="field mt-2" type={mode==="forgot"?"email":"text"} inputMode="email" autoComplete={mode==="signup"?"username":"email"} spellCheck={false} maxLength={255} value={identifier} onChange={e=>setIdentifier(e.target.value)} required /></label>{mode!=="forgot"&&<label className="mb-5 block text-xs font-medium">Password<input className="field mt-2" type="password" minLength={8} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} required /></label>}{notice&&<div className="mb-4"><NoticeBox {...notice}/></div>}<Button className="h-11 w-full" disabled={busy}>{busy?"Please wait…":mode==="login"?"Sign in":mode==="signup"?"Create account":"Send reset link"}</Button><div className="mt-6 flex justify-between text-xs"><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={()=>{setMode(mode==="signup"?"login":"signup");setNotice(null)}}>{mode==="signup"?"Already have an account?":"Create account"}</Button><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={()=>{setMode(mode==="forgot"?"login":"forgot");setNotice(null)}}>{mode==="forgot"?"Back to sign in":"Forgot password?"}</Button></div></form></div></div>;
+  {DEMO_LOGINS_ENABLED&&<div className="mt-12"><p className="eyebrow mb-3">Demo accounts</p><p className="mb-4 max-w-md text-xs leading-5 text-muted-foreground">One click signs you in. Each role has different permissions, enforced by the database rather than by hiding buttons.</p>{demoNotice&&<div className="mb-4 max-w-md"><NoticeBox {...demoNotice}/></div>}<div className="grid gap-3 sm:grid-cols-3">{DEMO_ACCOUNTS.map(a=><button key={a.username} type="button" onClick={()=>enterAs(a)} disabled={!!pending} aria-label={`Sign in as ${a.name}, ${a.role}`} className={`demo-card ${pending===a.username?"demo-card-active":""}`}><span className="flex items-center gap-2.5"><span className="demo-avatar">{a.initial}</span><span className="min-w-0"><span className="block truncate text-sm font-semibold">{a.name}</span><span className="block text-[11px] text-muted-foreground">@{a.username}</span></span></span><span className={`tag mt-3 ${a.role==="manager"?"tag-in":"tag-draft"}`}>{a.role}</span><span className="mt-2 block text-[11px] leading-4 text-muted-foreground">{a.blurb}</span><span className="demo-cta">{pending===a.username?"Signing in…":"Enter workspace →"}</span></button>)}</div></div>}</section><form onSubmit={submit} className="auth-surface p-7 md:p-9"><p className="eyebrow mb-3">Your workspace</p><h2 className="font-display text-2xl font-semibold">{mode==="login"?"Welcome back":mode==="signup"?"Create your account":"Reset password"}</h2><p className="mb-7 mt-2 text-sm text-muted-foreground">{mode==="forgot"?"We’ll email you a secure recovery link.":mode==="signup"?"Create your account, then ask a manager for access to the workspace.":"Sign in to pick up where you left off."}</p>{mode==="signup"&&<label className="mb-4 block text-xs font-medium">Full name<input className="field mt-2" maxLength={100} value={name} onChange={e=>setName(e.target.value)} required /></label>}<label className="mb-4 block text-xs font-medium">{mode==="forgot"?"Email":"Email or username"}<input className="field mt-2" type={mode==="forgot"?"email":"text"} inputMode="email" autoComplete={mode==="signup"?"username":"email"} spellCheck={false} maxLength={255} value={identifier} onChange={e=>setIdentifier(e.target.value)} required /></label>{mode!=="forgot"&&<label className="mb-5 block text-xs font-medium">Password<input className="field mt-2" type="password" minLength={8} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} required /></label>}{notice&&<div className="mb-4"><NoticeBox {...notice}/></div>}<Button className="h-11 w-full" disabled={busy}>{busy?"Please wait…":mode==="login"?"Sign in":mode==="signup"?"Create account":"Send reset link"}</Button><div className="mt-6 flex justify-between text-xs"><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={()=>{setMode(mode==="signup"?"login":"signup");setNotice(null)}}>{mode==="signup"?"Already have an account?":"Create account"}</Button><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={()=>{setMode(mode==="forgot"?"login":"forgot");setNotice(null)}}>{mode==="forgot"?"Back to sign in":"Forgot password?"}</Button></div></form></div></div>;
+}
+
+/** Shown to someone who has requested access but has no role yet, so they see nothing. */
+function PendingApproval({user,onRefresh}:{user:User;onRefresh:()=>Promise<void>}) {
+  const [checking,setChecking]=useState(false);
+  return <div className="auth-grid grid min-h-screen place-items-center p-5"><div className="auth-surface w-full max-w-lg p-7 md:p-8"><p className="eyebrow mb-3">Access requested</p><h1 className="font-display text-2xl font-semibold">Waiting for approval</h1>
+  <p className="mt-3 text-sm leading-6 text-muted-foreground">Your account is set up and you have asked to join the workspace. A manager needs to grant you a role before any stock data becomes visible.</p>
+  <div className="mt-6 space-y-2 rounded-xl border p-4 text-sm"><div className="flex justify-between gap-4"><span className="text-muted-foreground">Signed in as</span><span className="font-medium">{user.user_metadata['display_name']||user.email}</span></div><div className="flex justify-between gap-4"><span className="text-muted-foreground">Email</span><span className="font-medium">{user.email}</span></div><div className="flex justify-between gap-4"><span className="text-muted-foreground">Status</span><span className="tag tag-waiting"><Clock className="size-3"/>Pending</span></div></div>
+  <p className="mt-5 text-xs leading-5 text-muted-foreground">This is enforced by the database, not by the screen you are looking at: until a manager assigns your role, every query returns nothing.</p>
+  <div className="mt-6 flex gap-2"><Button className="flex-1" disabled={checking} onClick={async()=>{setChecking(true);await onRefresh();setChecking(false);}}>{checking?"Checking…":"Check again"}</Button><Button variant="outline" onClick={async()=>{await supabase.auth.signOut();}}><LogOut/>Sign out</Button></div></div></div>;
+}
+
+type Member = { user_id: string; role: string; display_name: string; email: string };
+/** Manager-only. Grants the role a newly registered account needs before it can see anything. */
+function Team({workspace,userId,load,setBusy,setError}:Common) {
+  const [members,setMembers]=useState<Member[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [notice,setNotice]=useState<Notice|null>(null);
+
+  const refresh=useCallback(async()=>{
+    setLoading(true);
+    const {data:rows,error}=await supabase.from("workspace_members").select("user_id,role").eq("workspace_id",workspace.id);
+    if(error){setError(error.message);setLoading(false);return;}
+    const ids=(rows??[]).map(r=>r.user_id);
+    const {data:people}=ids.length?await supabase.from("profiles").select("id,display_name,email").in("id",ids):{data:[]};
+    const byId=new Map((people??[]).map(p=>[p.id,p]));
+    setMembers((rows??[]).map(r=>({user_id:r.user_id,role:r.role,display_name:byId.get(r.user_id)?.display_name||"Unnamed user",email:byId.get(r.user_id)?.email||""}))
+      .sort((a,b)=>(a.role==="pending"?0:1)-(b.role==="pending"?0:1)||a.display_name.localeCompare(b.display_name)));
+    setLoading(false);
+  },[workspace.id,setError]);
+  useEffect(()=>{void refresh()},[refresh]);
+
+  async function apply(member:Member,next:string){
+    setBusy(true);setNotice(null);
+    const {error}=next==="remove"
+      ? await supabase.rpc("remove_member",{workspace:workspace.id,target_user:member.user_id})
+      : await supabase.rpc("set_member_role",{workspace:workspace.id,target_user:member.user_id,new_role:next});
+    if(error)setNotice({tone:"error",text:error.message});
+    else setNotice({tone:"info",text:next==="remove"?`${member.display_name} removed from the workspace.`:`${member.display_name} is now ${next}.`});
+    await refresh(); await load(); setBusy(false);
+  }
+
+  const waiting=members.filter(m=>m.role==="pending").length;
+  return <><Heading title="Team" subtitle="Who can reach this workspace, and what each of them is allowed to do."/>
+  {notice&&<div className="mb-5 max-w-3xl"><NoticeBox {...notice}/></div>}
+  {waiting>0&&<p className="mb-5 flex max-w-3xl items-start gap-2 rounded-xl border border-warning/40 bg-card p-4 text-sm"><Clock className="mt-0.5 size-4 shrink-0 text-warning"/><span><strong className="font-semibold">{waiting} {waiting===1?"person is":"people are"} waiting for access.</strong> They have registered and entered the invite code, but can see nothing until you give them a role.</span></p>}
+  <div className="panel table-wrap"><table className="data-table"><thead><tr><th>Person</th><th>Email</th><th>Role</th><th>Grants</th><th>Actions</th></tr></thead><tbody>
+    {loading&&<tr><td colSpan={5} className="text-muted-foreground">Loading team…</td></tr>}
+    {!loading&&members.map(m=><tr key={m.user_id}>
+      <td><div className="font-medium">{m.display_name}{m.user_id===userId&&<span className="ml-2 text-xs text-muted-foreground">(you)</span>}</div></td>
+      <td className="text-muted-foreground">{m.email||"—"}</td>
+      <td><span className={`tag ${m.role==="manager"?"tag-in":m.role==="staff"?"tag-draft":"tag-waiting"}`}>{m.role}</span></td>
+      <td><div className="max-w-64 whitespace-normal text-xs text-muted-foreground">{m.role==="manager"?"Full access, including the catalogue, warehouses, purchasing and reversals.":m.role==="staff"?"Records and validates movements. Cannot change the catalogue or reverse documents.":"No access to any stock data."}</div></td>
+      <td><div className="flex flex-wrap gap-2">
+        {m.role!=="manager"&&<Button size="sm" variant="outline" onClick={()=>apply(m,"manager")}><UserCheck/>Make manager</Button>}
+        {m.role!=="staff"&&<Button size="sm" variant="outline" onClick={()=>apply(m,"staff")}><UserCheck/>{m.role==="pending"?"Approve as staff":"Make staff"}</Button>}
+        {m.role!=="pending"&&m.user_id!==userId&&<Button size="sm" variant="ghost" title="Revoke access, keep the account" onClick={()=>apply(m,"pending")}><Lock/>Revoke</Button>}
+        {m.user_id!==userId&&<Button size="sm" variant="ghost" title="Remove from workspace" onClick={()=>{if(window.confirm(`Remove ${m.display_name}? Their recorded stock movements stay in the ledger.`))void apply(m,"remove")}}><UserMinus/></Button>}
+      </div></td></tr>)}
+    {!loading&&!members.length&&<tr><td colSpan={5} className="text-muted-foreground">Nobody else has joined yet.</td></tr>}
+  </tbody></table></div>
+  <div className="mt-5 max-w-3xl space-y-2 border-t pt-5 text-xs leading-5 text-muted-foreground">
+    <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Share the invite code <strong className="font-mono text-primary">{workspace.join_code}</strong> so a new hire can request access. Registering alone gives nobody any visibility.</span></p>
+    <p><strong className="font-semibold text-foreground">Enforced in the database.</strong> Roles are checked by row-level security policies, so revoking someone takes effect on their next query whatever screen they happen to be on. A workspace always keeps at least one manager, and you cannot remove your own manager access.</p>
+    <p><strong className="font-semibold text-foreground">Removing someone preserves history.</strong> Documents and ledger rows they recorded stay exactly as they are, because stock accounting has to stay auditable.</p>
+  </div></>;
 }
 
 function WorkspaceSetup({onReady}:{onReady:()=>Promise<void>}) { const [name,setName]=useState(""); const [code,setCode]=useState(""); const [error,setError]=useState(""); async function create(){if(name.trim().length<2)return setError("Enter a workspace name.");const {error}=await supabase.rpc("create_workspace",{workspace_name:name.trim()});if(error)setError(error.message);else await onReady();} async function join(){const {error}=await supabase.rpc("join_workspace",{code:code.trim()});if(error)setError(error.message);else await onReady();} return <div className="auth-grid grid min-h-screen place-items-center p-5"><div className="auth-surface w-full max-w-xl p-7 md:p-8"><div className="mb-6 flex items-center gap-3"><div className="grid size-10 place-items-center rounded-md bg-primary text-primary-foreground"><Building2/></div><div><h1 className="font-display text-xl font-semibold">Set up your workspace</h1><p className="text-sm text-muted-foreground">Create a company inventory or join your team.</p></div></div>{error&&<p className="mb-4 text-sm text-destructive">{error}</p>}<div className="grid gap-6 sm:grid-cols-2"><div><label className="text-xs font-medium">Company / workspace name</label><input className="field mt-2" maxLength={100} value={name} onChange={e=>setName(e.target.value)}/><Button className="mt-3 w-full" onClick={create}>Create workspace</Button></div><div className="sm:border-l sm:pl-6"><label className="text-xs font-medium">Invitation code</label><input className="field mt-2 uppercase" maxLength={16} value={code} onChange={e=>setCode(e.target.value)}/><Button variant="outline" className="mt-3 w-full" onClick={join}>Join workspace</Button></div></div></div></div> }

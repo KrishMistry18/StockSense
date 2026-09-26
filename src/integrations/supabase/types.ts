@@ -223,16 +223,19 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string
+          email: string
           id: string
         }
         Insert: {
           created_at?: string
           display_name?: string
+          email?: string
           id: string
         }
         Update: {
           created_at?: string
           display_name?: string
+          email?: string
           id?: string
         }
         Relationships: []
@@ -443,6 +446,15 @@ export type Database = {
       is_manager: { Args: { w: string }; Returns: boolean }
       is_member: { Args: { w: string }; Returns: boolean }
       join_workspace: { Args: { code: string }; Returns: string }
+      remove_member: {
+        Args: { target_user: string; workspace: string }
+        Returns: undefined
+      }
+      set_member_role: {
+        Args: { new_role: string; target_user: string; workspace: string }
+        Returns: undefined
+      }
+      shares_workspace: { Args: { other: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

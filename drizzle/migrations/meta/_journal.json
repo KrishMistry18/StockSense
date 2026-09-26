@@ -36,6 +36,13 @@
       "when": 1790412000000,
       "tag": "0004_role_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790418000000,
+      "tag": "0005_team_administration",
+      "breakpoints": true
     }
   ]
 }
