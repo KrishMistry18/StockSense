@@ -1,0 +1,14 @@
+- [x] Cloud authentication, workspace, warehouses, products, stock ledger, and core operations
+- [x] Dashboard filters and stock-operation controls
+- [x] Product maintenance and initial stock flow
+- [x] Verify signed-in dashboard, product navigation, theme switching, and responsive screens
+- [x] Verify receipt, transfer, delivery, and adjustment against stock balances and movement history
+- [x] Populate the current workspace with clearly marked sample warehouses, products, documents, balances, and movement history
+- [x] Audit the original problem statement and report any incomplete flows accurately
+- [ ] OTP-code password reset — current recovery uses an emailed link
+
+- [x] Redesign StockSense independently with Charcoal & Ember, Sora/Manrope, and light/dark theme
+- [x] Expand sample low-stock and out-of-stock products so dashboard counts show multiple examples
+- [x] Add warehouse-specific AI risk and replenishment advice grounded in current balances and recent movements
+- [x] Add distinct confirmed pick, confirmed pack, and dispatched delivery steps with stock movement on dispatch
+- [x] Make product editing/archiving and draft document editing/discarding functional while preserving completed stock history
