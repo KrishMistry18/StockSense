@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790394672769,
+      "tag": "0000_inventory_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790396671165,
+      "tag": "0001_delivery_confirmations_and_product_archiving",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790399400000,
+      "tag": "0002_ledger_actor_names",
+      "breakpoints": true
+    }
+  ]
+}
