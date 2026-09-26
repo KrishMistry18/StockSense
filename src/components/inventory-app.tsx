@@ -3,7 +3,7 @@ import {
   ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, Building2,
   ClipboardCheck, Gauge, History, LogOut, Menu, Package, Plus, Search,
   TriangleAlert, UserRound, Warehouse, X, Moon, Sun, Sparkles, Archive, Trash2, Pencil,
-  Timer, RotateCcw, ShieldCheck, Info, Lock,
+  Timer, RotateCcw, ShieldCheck, Info, Lock, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,9 @@ export function InventoryApp() {
   const [dataLoading, setDataLoading] = useState(true);
   const [view, setView] = useState<View>("dashboard");
   const [sidebar, setSidebar] = useState(false);
+  // Desktop-only rail collapse. Read after mount so the server render and the first client render
+  // agree; reading localStorage during render would hydrate mismatched markup.
+  const [collapsed, setCollapsed] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -115,6 +118,13 @@ export function InventoryApp() {
   }, []);
   useEffect(() => { if (user) { setDataLoading(true); void load(); } else { setWorkspace(null); setProducts([]); setOperations([]); setBalances([]); setLedger([]); setDemandLegs([]); setActors({}); } }, [user?.id, load]);
 
+  useEffect(() => { setCollapsed(window.localStorage.getItem("stocksense-sidebar") === "collapsed"); }, []);
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    window.localStorage.setItem("stocksense-sidebar", next ? "collapsed" : "expanded");
+  }
+
   const demandByProduct = useMemo(() => buildDemand(demandLegs), [demandLegs]);
 
   if (authLoading) return <div className="auth-grid grid min-h-screen place-items-center text-muted-foreground">Loading StockSense…</div>;
@@ -129,14 +139,18 @@ export function InventoryApp() {
   const contentProps = { workspace, products, locations, balances, operations, operationProducts, ledger, quantity, demandFor, balanceAt, actors, userId: user.id, role, can, load, setBusy, setError, search, setView };
   return (
     <div className="app-shell min-h-screen text-foreground lg:flex">
-      <aside className={`${sidebar ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} app-sidebar w-64 shrink-0 flex-col lg:sticky lg:top-0 lg:flex lg:h-screen`}>
-        <div className="flex h-20 items-center gap-3 border-b px-5"><div className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground"><Boxes className="size-5" /></div><div><div className="font-display text-base font-semibold">StockSense</div><div className="text-[11px] text-muted-foreground">Inventory workspace</div></div><Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={() => setSidebar(false)}><X /></Button></div>
-        <div className="px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground">Workspace</div><nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">{nav.map((item) => <Button key={item.view} variant="ghost" className={`h-11 w-full justify-start gap-3 ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon />{item.label}</Button>)}</nav>
-        <div className="border-t p-3"><Button variant="ghost" className="mb-1 h-auto w-full justify-start py-2" onClick={() => setView("profile")}><UserRound /><span className="min-w-0 text-left"><span className="block truncate">{user.user_metadata['display_name'] || user.email}</span><span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{role}</span></span></Button><Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={async () => { await supabase.auth.signOut(); }}><LogOut />Log out</Button></div>
+      {/* Collapse applies only from lg up: the mobile drawer is always full width, since a 72px
+          overlay would be useless. */}
+      <aside className={`${sidebar ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} app-sidebar w-64 shrink-0 flex-col transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen ${collapsed ? "lg:w-[72px]" : "lg:w-64"}`}>
+        <div className={`flex h-20 items-center gap-3 border-b px-5 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}><div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"><Boxes className="size-5" /></div><div className={collapsed ? "lg:hidden" : ""}><div className="font-display text-base font-semibold">StockSense</div><div className="text-[11px] text-muted-foreground">Inventory workspace</div></div><Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={() => setSidebar(false)}><X /></Button></div>
+        <div className={`px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground ${collapsed ? "lg:hidden" : ""}`}>Workspace</div><nav className={`flex-1 space-y-1 overflow-y-auto px-3 pb-4 ${collapsed ? "lg:pt-7" : ""}`}>{nav.map((item) => <Button key={item.view} variant="ghost" title={item.label} className={`h-11 w-full justify-start gap-3 ${collapsed ? "lg:justify-center lg:px-0" : ""} ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon /><span className={collapsed ? "lg:hidden" : ""}>{item.label}</span></Button>)}</nav>
+        <div className="border-t p-3"><Button variant="ghost" title={`${user.user_metadata['display_name'] || user.email} · ${role}`} className={`mb-1 h-auto w-full justify-start py-2 ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={() => setView("profile")}><UserRound /><span className={`min-w-0 text-left ${collapsed ? "lg:hidden" : ""}`}><span className="block truncate">{user.user_metadata['display_name'] || user.email}</span><span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{role}</span></span></Button><Button variant="ghost" title="Log out" className={`w-full justify-start text-muted-foreground ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={async () => { await supabase.auth.signOut(); }}><LogOut /><span className={collapsed ? "lg:hidden" : ""}>Log out</span></Button></div>
       </aside>
       {sidebar && <Button aria-label="Close menu" variant="ghost" className="fixed inset-0 z-30 h-auto w-full rounded-none bg-background/70 lg:hidden" onClick={() => setSidebar(false)} />}
       <main className="min-w-0 flex-1">
-        <header className="app-header sticky top-0 z-20 flex min-h-20 items-center gap-3 px-4 md:px-8"><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu" onClick={() => setSidebar(true)}><Menu /></Button><div className="relative max-w-xl flex-1"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"/><input className="field field-search" aria-label="Search inventory" value={search} placeholder="Search products, SKU, or reference…" onChange={(e) => setSearch(e.target.value)} /></div><div className="hidden text-right sm:block"><div className="text-sm font-semibold">{workspace.name}</div><div className="text-xs text-muted-foreground">Inventory workspace</div></div><ThemeToggle /><Button variant="secondary" size="icon" aria-label="My profile" title="My profile" className="rounded-full font-semibold" onClick={() => setView("profile")}>{(user.user_metadata['display_name'] || user.email || "U")[0].toUpperCase()}</Button></header>
+        <header className="app-header sticky top-0 z-20 flex min-h-20 items-center gap-3 px-4 md:px-8"><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu" onClick={() => setSidebar(true)}><Menu /></Button><Button variant="ghost" size="icon" className="hidden lg:flex" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} onClick={toggleCollapsed}>{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button><div className="relative max-w-xl flex-1"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"/><input className="field field-search" aria-label="Search inventory" value={search} placeholder="Search products, SKU, or reference…" onChange={(e) => setSearch(e.target.value)} /></div><div className="hidden text-right lg:block"><div className="text-sm font-semibold">{workspace.name}</div><div className="text-xs text-muted-foreground">Inventory workspace</div></div><ThemeToggle />
+          {/* Who is signed in right now, not just an initial — name and role, with a live dot. */}
+          <button type="button" className="user-chip" onClick={() => setView("profile")} title={`Signed in as ${user.user_metadata['display_name'] || user.email} (${role}) — open profile`}><span className="user-chip-avatar">{(user.user_metadata['display_name'] || user.email || "U")[0].toUpperCase()}<span className="user-chip-dot" aria-hidden="true" /></span><span className="hidden min-w-0 text-left sm:block"><span className="block truncate text-sm font-semibold leading-tight">{user.user_metadata['display_name'] || user.email}</span><span className="block text-[10px] font-bold uppercase tracking-wider text-primary">{role}</span></span><span className="sr-only">Signed in as {user.user_metadata['display_name'] || user.email}, role {role}</span></button></header>
         <div className="p-4 pb-24 md:p-8 lg:pb-8">
           {error && <div role="alert" className="fixed right-4 top-24 z-[70] flex max-w-md items-start justify-between gap-3 rounded-md border border-destructive/40 bg-card p-4 text-sm text-destructive shadow-lg"><span>{error}</span><Button size="icon" variant="ghost" aria-label="Dismiss error" onClick={() => setError("")}><X /></Button></div>}
           {view === "dashboard" && <Dashboard {...contentProps} />}

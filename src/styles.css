@@ -714,6 +714,75 @@ input[type="checkbox"] {
   color: var(--primary);
 }
 
+/* ---------------------------------------------------------------------------
+   Signed-in user chip
+   Shows who is holding the session, so a shared terminal never leaves you
+   guessing whose movements are about to be recorded.
+   --------------------------------------------------------------------------- */
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  max-width: 220px;
+  padding: 5px 12px 5px 5px;
+  cursor: pointer;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(120%);
+  color: var(--foreground);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.user-chip:hover {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  box-shadow: var(--shadow-md);
+}
+
+.user-chip-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-family: "Sora", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-foreground);
+  background: linear-gradient(
+    145deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary) 60%, var(--warning))
+  );
+}
+
+/* Live-session indicator. Ringed in the header colour so it reads as attached
+   to the avatar rather than floating over it. */
+.user-chip-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-chip {
+    transition: none;
+  }
+}
+
 /* Small ember accent so the eye lands on the section heading first. */
 .eyebrow {
   display: inline-flex;
