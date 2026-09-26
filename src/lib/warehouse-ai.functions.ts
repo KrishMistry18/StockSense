@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { analyzeWarehouseStock, type AnalysisLeg, type WarehouseAnalysis } from "@/lib/warehouse-analysis";
+import {
+  analyzeWarehouseStock,
+  type AnalysisLeg,
+  type WarehouseAnalysis,
+} from "@/lib/warehouse-analysis";
 import { DEMAND_WINDOW_DAYS } from "@/lib/replenishment";
 
 /**
@@ -40,9 +44,21 @@ export const analyzeWarehouse = createServerFn({ method: "POST" })
 
     const since = new Date(Date.now() - DEMAND_WINDOW_DAYS * 86_400_000).toISOString();
     const [locations, products, balances, ledger] = await Promise.all([
-      db.from("locations").select("id,name").eq("workspace_id", data.workspaceId).eq("warehouse_id", warehouse.id),
-      db.from("products").select("id,name,sku,unit,reorder_point").eq("workspace_id", data.workspaceId).eq("archived", false).limit(500),
-      db.from("stock_balances").select("product_id,location_id,quantity").eq("workspace_id", data.workspaceId),
+      db
+        .from("locations")
+        .select("id,name")
+        .eq("workspace_id", data.workspaceId)
+        .eq("warehouse_id", warehouse.id),
+      db
+        .from("products")
+        .select("id,name,sku,unit,reorder_point")
+        .eq("workspace_id", data.workspaceId)
+        .eq("archived", false)
+        .limit(500),
+      db
+        .from("stock_balances")
+        .select("product_id,location_id,quantity")
+        .eq("workspace_id", data.workspaceId),
       db
         .from("stock_ledger")
         .select("product_id,location_id,delta,created_at,operations(kind)")

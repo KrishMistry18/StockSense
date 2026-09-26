@@ -463,7 +463,8 @@
 select.field {
   appearance: none;
   padding-right: 38px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
     linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
   background-position:
     calc(100% - 19px) calc(50% + 2px),

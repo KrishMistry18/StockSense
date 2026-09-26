@@ -83,7 +83,12 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const round = (n: number) => Math.round(n * 100) / 100;
 
 /** Sums outbound (delivery) units in a window offset back from now. */
-function outboundBetween(legs: AnalysisLeg[], now: number, fromDaysAgo: number, toDaysAgo: number): number {
+function outboundBetween(
+  legs: AnalysisLeg[],
+  now: number,
+  fromDaysAgo: number,
+  toDaysAgo: number,
+): number {
   const from = now - fromDaysAgo * DAY_MS;
   const to = now - toDaysAgo * DAY_MS;
   return legs.reduce((sum, leg) => {
@@ -123,7 +128,11 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
       quantity,
       demand: productDemand,
       runwayDays,
-      suggested: suggestedQuantity(quantity, productDemand.dailyDemand, Number(product.reorder_point)),
+      suggested: suggestedQuantity(
+        quantity,
+        productDemand.dailyDemand,
+        Number(product.reorder_point),
+      ),
     };
   });
 
@@ -133,9 +142,13 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
   const soon = rows.filter(
     (r) => r.quantity > 0 && r.runwayDays !== null && r.runwayDays > 7 && r.runwayDays <= RISK_DAYS,
   );
-  const belowThreshold = rows.filter((r) => r.quantity > 0 && r.quantity <= Number(r.product.reorder_point));
+  const belowThreshold = rows.filter(
+    (r) => r.quantity > 0 && r.quantity <= Number(r.product.reorder_point),
+  );
   // Below its threshold but with plenty of runway: the threshold, not the stock, is the problem.
-  const thresholdNoise = belowThreshold.filter((r) => r.runwayDays === null || r.runwayDays > RISK_DAYS * 2);
+  const thresholdNoise = belowThreshold.filter(
+    (r) => r.runwayDays === null || r.runwayDays > RISK_DAYS * 2,
+  );
   const dormant = rows.filter((r) => r.quantity > 0 && r.demand.totalDemand === 0);
 
   const outboundUnits = input.legs.reduce((sum, leg) => {
@@ -161,7 +174,8 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
     findings.push({
       severity: "critical",
       title: `${plural(outOfStock.length, "product")} out of stock`,
-      detail: "Nothing on hand at this warehouse. Any order for these cannot be fulfilled from here.",
+      detail:
+        "Nothing on hand at this warehouse. Any order for these cannot be fulfilled from here.",
       items: outOfStock.map((r) => `${r.product.name} (${r.product.sku})`),
     });
   }
@@ -173,7 +187,10 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
       detail: `At the outbound rate of the last ${DEMAND_WINDOW_DAYS} days.`,
       items: imminent
         .sort((a, b) => (a.runwayDays ?? 0) - (b.runwayDays ?? 0))
-        .map((r) => `${r.product.name} — ${formatRunway(r.runwayDays)} left, ${r.quantity} ${r.product.unit} on hand`),
+        .map(
+          (r) =>
+            `${r.product.name} — ${formatRunway(r.runwayDays)} left, ${r.quantity} ${r.product.unit} on hand`,
+        ),
     });
   }
 
@@ -223,8 +240,11 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
     findings.push({
       severity: "healthy",
       title: `${plural(thresholdNoise.length, "low-stock alert")} that may be a threshold problem`,
-      detail: "Below the configured reorder point, but with weeks of runway at current demand. Consider lowering the threshold rather than reordering.",
-      items: thresholdNoise.map((r) => `${r.product.name} — ${r.quantity} ${r.product.unit}, ${formatRunway(r.runwayDays)}`),
+      detail:
+        "Below the configured reorder point, but with weeks of runway at current demand. Consider lowering the threshold rather than reordering.",
+      items: thresholdNoise.map(
+        (r) => `${r.product.name} — ${r.quantity} ${r.product.unit}, ${formatRunway(r.runwayDays)}`,
+      ),
     });
   }
 
@@ -234,26 +254,44 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
     if (input.locations.length < 2) break;
     const perLocation = input.balances.filter((b) => b.product_id === row.product.id);
     const top = perLocation.reduce(
-      (best, b) => (Number(b.quantity) > best.quantity ? { id: b.location_id, quantity: Number(b.quantity) } : best),
+      (best, b) =>
+        Number(b.quantity) > best.quantity
+          ? { id: b.location_id, quantity: Number(b.quantity) }
+          : best,
       { id: "", quantity: 0 },
     );
-    if (row.quantity > 0 && top.quantity / row.quantity >= CONCENTRATION_SHARE && perLocation.length > 1) {
+    if (
+      row.quantity > 0 &&
+      top.quantity / row.quantity >= CONCENTRATION_SHARE &&
+      perLocation.length > 1
+    ) {
       const name = input.locations.find((l) => l.id === top.id)?.name ?? "one location";
-      concentrated.push(`${row.product.name} — ${Math.round((top.quantity / row.quantity) * 100)}% in ${name}`);
+      concentrated.push(
+        `${row.product.name} — ${Math.round((top.quantity / row.quantity) * 100)}% in ${name}`,
+      );
     }
   }
   if (concentrated.length) {
     findings.push({
       severity: "healthy",
       title: `${plural(concentrated.length, "product")} concentrated in a single location`,
-      detail: "Fine operationally, but worth knowing before a location is taken offline for a count.",
+      detail:
+        "Fine operationally, but worth knowing before a location is taken offline for a count.",
       items: concentrated,
     });
   }
 
   const reorderPlan: ReorderLine[] = rows
-    .filter((r) => r.suggested > 0 && (r.quantity <= Number(r.product.reorder_point) || (r.runwayDays !== null && r.runwayDays <= RISK_DAYS)))
-    .sort((a, b) => (a.runwayDays ?? Number.POSITIVE_INFINITY) - (b.runwayDays ?? Number.POSITIVE_INFINITY))
+    .filter(
+      (r) =>
+        r.suggested > 0 &&
+        (r.quantity <= Number(r.product.reorder_point) ||
+          (r.runwayDays !== null && r.runwayDays <= RISK_DAYS)),
+    )
+    .sort(
+      (a, b) =>
+        (a.runwayDays ?? Number.POSITIVE_INFINITY) - (b.runwayDays ?? Number.POSITIVE_INFINITY),
+    )
     .map((r) => ({
       sku: r.product.sku,
       name: r.product.name,
@@ -271,7 +309,8 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
     findings.push({
       severity: "healthy",
       title: `${plural(weak, "reorder suggestion")} rest on thin or erratic history`,
-      detail: "Those quantities are a starting point for a human decision, not a forecast. Each line states why below.",
+      detail:
+        "Those quantities are a starting point for a human decision, not a forecast. Each line states why below.",
     });
   }
 
@@ -280,7 +319,8 @@ export function analyzeWarehouseStock(input: AnalysisInput): WarehouseAnalysis {
     findings.push({
       severity: "healthy",
       title: "No stock recorded at this warehouse",
-      detail: "Nothing has been received here and nothing has moved through it, so there is nothing to analyse yet.",
+      detail:
+        "Nothing has been received here and nothing has moved through it, so there is nothing to analyse yet.",
     });
   } else if (!findings.some((f) => f.severity !== "healthy")) {
     findings.unshift({

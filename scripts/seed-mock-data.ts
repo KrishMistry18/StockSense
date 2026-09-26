@@ -39,7 +39,9 @@ const url = (process.env["SUPABASE_URL"] ?? "").replace(/\/$/, "");
 const publishable = process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
 const secret = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_SECRET_KEY"] ?? "";
 if (!url || !publishable || !secret) {
-  console.error("Need SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SERVICE_ROLE_KEY in .env");
+  console.error(
+    "Need SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SERVICE_ROLE_KEY in .env",
+  );
   process.exit(1);
 }
 
@@ -47,7 +49,11 @@ if (!url || !publishable || !secret) {
 const UA = "StockSense-Seed/1.0";
 let accessToken = "";
 
-async function api(method: string, path: string, opts: { body?: unknown; service?: boolean; prefer?: string } = {}) {
+async function api(
+  method: string,
+  path: string,
+  opts: { body?: unknown; service?: boolean; prefer?: string } = {},
+) {
   const key = opts.service ? secret : publishable;
   const auth = opts.service ? secret : accessToken || publishable;
   const headers: Record<string, string> = {
@@ -67,14 +73,18 @@ async function api(method: string, path: string, opts: { body?: unknown; service
   if (!response.ok) {
     const detail =
       parsed && typeof parsed === "object"
-        ? String((parsed as Record<string, unknown>)["message"] ?? (parsed as Record<string, unknown>)["msg"] ?? text)
+        ? String(
+            (parsed as Record<string, unknown>)["message"] ??
+              (parsed as Record<string, unknown>)["msg"] ??
+              text,
+          )
         : text;
     throw new Error(`${method} ${path} -> ${response.status}: ${detail}`);
   }
   return parsed;
 }
 
-const rows = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+const rows = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
 /** mulberry32 — small deterministic PRNG so repeated runs produce identical data. */
 function makeRandom(seed: number) {
@@ -129,41 +139,261 @@ function erratic(count: number, lo: number, hi: number): { day: number; qty: num
 
 const CATALOGUE: Product[] = [
   // Steady daily mover, deliberately left with only a few days of runway.
-  { sku: MARKER_SKU, name: "Steel Rod 12mm", category: "Raw Material", unit: "Units", reorderPoint: 100, endingTarget: 38, shipDays: regular(2, 22) },
+  {
+    sku: MARKER_SKU,
+    name: "Steel Rod 12mm",
+    category: "Raw Material",
+    unit: "Units",
+    reorderPoint: 100,
+    endingTarget: 38,
+    shipDays: regular(2, 22),
+  },
   // Regular weekly cadence: high confidence despite shipping only once a week.
-  { sku: "CU-WIRE-50", name: "Copper Wire Spool 50m", category: "Electrical", unit: "Spools", reorderPoint: 120, endingTarget: 84, shipDays: regular(7, 60) },
-  { sku: "FLT-CRT-20", name: "Filter Cartridge 20in", category: "Consumables", unit: "Units", reorderPoint: 60, endingTarget: 210, shipDays: regular(7, 34) },
-  { sku: "BLT-M10-BX", name: "Bolt M10 Box", category: "Fasteners", unit: "Boxes", reorderPoint: 200, endingTarget: 610, shipDays: regular(1, 26) },
-  { sku: "BRG-6204", name: "Bearing 6204", category: "Components", unit: "Units", reorderPoint: 80, endingTarget: 152, shipDays: regular(3, 18) },
-  { sku: "WLD-ROD-25", name: "Welding Rod 2.5mm", category: "Consumables", unit: "Packs", reorderPoint: 90, endingTarget: 26, shipDays: regular(2, 14) },
-  { sku: "OIL-MTR-5L", name: "Motor Oil 5L", category: "Lubricants", unit: "Cans", reorderPoint: 50, endingTarget: 124, shipDays: regular(4, 20) },
+  {
+    sku: "CU-WIRE-50",
+    name: "Copper Wire Spool 50m",
+    category: "Electrical",
+    unit: "Spools",
+    reorderPoint: 120,
+    endingTarget: 84,
+    shipDays: regular(7, 60),
+  },
+  {
+    sku: "FLT-CRT-20",
+    name: "Filter Cartridge 20in",
+    category: "Consumables",
+    unit: "Units",
+    reorderPoint: 60,
+    endingTarget: 210,
+    shipDays: regular(7, 34),
+  },
+  {
+    sku: "BLT-M10-BX",
+    name: "Bolt M10 Box",
+    category: "Fasteners",
+    unit: "Boxes",
+    reorderPoint: 200,
+    endingTarget: 610,
+    shipDays: regular(1, 26),
+  },
+  {
+    sku: "BRG-6204",
+    name: "Bearing 6204",
+    category: "Components",
+    unit: "Units",
+    reorderPoint: 80,
+    endingTarget: 152,
+    shipDays: regular(3, 18),
+  },
+  {
+    sku: "WLD-ROD-25",
+    name: "Welding Rod 2.5mm",
+    category: "Consumables",
+    unit: "Packs",
+    reorderPoint: 90,
+    endingTarget: 26,
+    shipDays: regular(2, 14),
+  },
+  {
+    sku: "OIL-MTR-5L",
+    name: "Motor Oil 5L",
+    category: "Lubricants",
+    unit: "Cans",
+    reorderPoint: 50,
+    endingTarget: 124,
+    shipDays: regular(4, 20),
+  },
   // Erratic: low confidence, because the weekly spread is enormous.
-  { sku: "SFT-HLM-01", name: "Safety Helmet", category: "Safety", unit: "Units", reorderPoint: 40, endingTarget: 46, shipDays: erratic(5, 4, 90) },
-  { sku: "CNV-BLT-5M", name: "Conveyor Belt 5m", category: "Components", unit: "Rolls", reorderPoint: 5, endingTarget: 11, shipDays: erratic(3, 1, 6) },
+  {
+    sku: "SFT-HLM-01",
+    name: "Safety Helmet",
+    category: "Safety",
+    unit: "Units",
+    reorderPoint: 40,
+    endingTarget: 46,
+    shipDays: erratic(5, 4, 90),
+  },
+  {
+    sku: "CNV-BLT-5M",
+    name: "Conveyor Belt 5m",
+    category: "Components",
+    unit: "Rolls",
+    reorderPoint: 5,
+    endingTarget: 11,
+    shipDays: erratic(3, 1, 6),
+  },
   // Semi-regular with real variation: lands in the middle confidence tier.
-  { sku: "PMP-SEAL-K", name: "Pump Seal Kit", category: "Components", unit: "Kits", reorderPoint: 30, endingTarget: 34, shipDays: [{ day: 52, qty: 18 }, { day: 45, qty: 9 }, { day: 33, qty: 26 }, { day: 26, qty: 12 }, { day: 12, qty: 21 }, { day: 5, qty: 7 }] },
+  {
+    sku: "PMP-SEAL-K",
+    name: "Pump Seal Kit",
+    category: "Components",
+    unit: "Kits",
+    reorderPoint: 30,
+    endingTarget: 34,
+    shipDays: [
+      { day: 52, qty: 18 },
+      { day: 45, qty: 9 },
+      { day: 33, qty: 26 },
+      { day: 26, qty: 12 },
+      { day: 12, qty: 21 },
+      { day: 5, qty: 7 },
+    ],
+  },
   // One-off: thin history, so the suggestion is explicitly untrustworthy.
-  { sku: "HYD-PMP-A2", name: "Hydraulic Pump A2", category: "Machinery", unit: "Units", reorderPoint: 4, endingTarget: 6, shipDays: [{ day: 12, qty: 3 }] },
+  {
+    sku: "HYD-PMP-A2",
+    name: "Hydraulic Pump A2",
+    category: "Machinery",
+    unit: "Units",
+    reorderPoint: 4,
+    endingTarget: 6,
+    shipDays: [{ day: 12, qty: 3 }],
+  },
   // Ends at exactly zero, so the dashboard shows a genuine out-of-stock.
-  { sku: "GSK-SET-09", name: "Gasket Set 09", category: "Components", unit: "Sets", reorderPoint: 25, endingTarget: 0, shipDays: regular(6, 18) },
+  {
+    sku: "GSK-SET-09",
+    name: "Gasket Set 09",
+    category: "Components",
+    unit: "Sets",
+    reorderPoint: 25,
+    endingTarget: 0,
+    shipDays: regular(6, 18),
+  },
   // Never ships: Replenishment must say "No recent demand" rather than inventing a forecast.
-  { sku: "PNT-DRM-20", name: "Paint Drum 20L", category: "Finishing", unit: "Drums", reorderPoint: 20, endingTarget: 58, shipDays: [] },
-  { sku: "PNT-THN-5L", name: "Paint Thinner 5L", category: "Finishing", unit: "Cans", reorderPoint: 15, endingTarget: 42, shipDays: [] },
-  { sku: "HEX-NUT-M8", name: "Hex Nut M8 Bag", category: "Fasteners", unit: "Bags", reorderPoint: 150, endingTarget: 480, shipDays: regular(2, 30) },
-  { sku: "WSH-FLT-M8", name: "Flat Washer M8 Bag", category: "Fasteners", unit: "Bags", reorderPoint: 120, endingTarget: 96, shipDays: regular(3, 26) },
-  { sku: "GLV-NTR-L", name: "Nitrile Glove L", category: "Safety", unit: "Boxes", reorderPoint: 60, endingTarget: 52, shipDays: regular(2, 17) },
-  { sku: "GOG-SFT-CL", name: "Safety Goggles", category: "Safety", unit: "Units", reorderPoint: 35, endingTarget: 140, shipDays: regular(5, 22) },
-  { sku: "TAP-DCT-50", name: "Duct Tape 50m", category: "Consumables", unit: "Rolls", reorderPoint: 40, endingTarget: 31, shipDays: erratic(6, 5, 55) },
-  { sku: "GRS-LTH-1K", name: "Lithium Grease 1kg", category: "Lubricants", unit: "Tubs", reorderPoint: 25, endingTarget: 88, shipDays: regular(6, 15) },
-  { sku: "BRG-6308", name: "Bearing 6308", category: "Components", unit: "Units", reorderPoint: 45, endingTarget: 38, shipDays: regular(4, 21) },
-  { sku: "VLV-BAL-2I", name: "Ball Valve 2in", category: "Components", unit: "Units", reorderPoint: 18, endingTarget: 14, shipDays: erratic(4, 2, 22) },
-  { sku: "CHN-RLR-3M", name: "Roller Chain 3m", category: "Machinery", unit: "Lengths", reorderPoint: 8, endingTarget: 26, shipDays: regular(9, 7) },
-  { sku: "ELC-CBL-10", name: "Control Cable 10m", category: "Electrical", unit: "Coils", reorderPoint: 30, endingTarget: 24, shipDays: regular(3, 12) },
-  { sku: "FSE-30A-BX", name: "Fuse 30A Box", category: "Electrical", unit: "Boxes", reorderPoint: 22, endingTarget: 110, shipDays: regular(8, 14) },
+  {
+    sku: "PNT-DRM-20",
+    name: "Paint Drum 20L",
+    category: "Finishing",
+    unit: "Drums",
+    reorderPoint: 20,
+    endingTarget: 58,
+    shipDays: [],
+  },
+  {
+    sku: "PNT-THN-5L",
+    name: "Paint Thinner 5L",
+    category: "Finishing",
+    unit: "Cans",
+    reorderPoint: 15,
+    endingTarget: 42,
+    shipDays: [],
+  },
+  {
+    sku: "HEX-NUT-M8",
+    name: "Hex Nut M8 Bag",
+    category: "Fasteners",
+    unit: "Bags",
+    reorderPoint: 150,
+    endingTarget: 480,
+    shipDays: regular(2, 30),
+  },
+  {
+    sku: "WSH-FLT-M8",
+    name: "Flat Washer M8 Bag",
+    category: "Fasteners",
+    unit: "Bags",
+    reorderPoint: 120,
+    endingTarget: 96,
+    shipDays: regular(3, 26),
+  },
+  {
+    sku: "GLV-NTR-L",
+    name: "Nitrile Glove L",
+    category: "Safety",
+    unit: "Boxes",
+    reorderPoint: 60,
+    endingTarget: 52,
+    shipDays: regular(2, 17),
+  },
+  {
+    sku: "GOG-SFT-CL",
+    name: "Safety Goggles",
+    category: "Safety",
+    unit: "Units",
+    reorderPoint: 35,
+    endingTarget: 140,
+    shipDays: regular(5, 22),
+  },
+  {
+    sku: "TAP-DCT-50",
+    name: "Duct Tape 50m",
+    category: "Consumables",
+    unit: "Rolls",
+    reorderPoint: 40,
+    endingTarget: 31,
+    shipDays: erratic(6, 5, 55),
+  },
+  {
+    sku: "GRS-LTH-1K",
+    name: "Lithium Grease 1kg",
+    category: "Lubricants",
+    unit: "Tubs",
+    reorderPoint: 25,
+    endingTarget: 88,
+    shipDays: regular(6, 15),
+  },
+  {
+    sku: "BRG-6308",
+    name: "Bearing 6308",
+    category: "Components",
+    unit: "Units",
+    reorderPoint: 45,
+    endingTarget: 38,
+    shipDays: regular(4, 21),
+  },
+  {
+    sku: "VLV-BAL-2I",
+    name: "Ball Valve 2in",
+    category: "Components",
+    unit: "Units",
+    reorderPoint: 18,
+    endingTarget: 14,
+    shipDays: erratic(4, 2, 22),
+  },
+  {
+    sku: "CHN-RLR-3M",
+    name: "Roller Chain 3m",
+    category: "Machinery",
+    unit: "Lengths",
+    reorderPoint: 8,
+    endingTarget: 26,
+    shipDays: regular(9, 7),
+  },
+  {
+    sku: "ELC-CBL-10",
+    name: "Control Cable 10m",
+    category: "Electrical",
+    unit: "Coils",
+    reorderPoint: 30,
+    endingTarget: 24,
+    shipDays: regular(3, 12),
+  },
+  {
+    sku: "FSE-30A-BX",
+    name: "Fuse 30A Box",
+    category: "Electrical",
+    unit: "Boxes",
+    reorderPoint: 22,
+    endingTarget: 110,
+    shipDays: regular(8, 14),
+  },
 ];
 
-const CUSTOMERS = ["Northwind Fabrication", "Acme Rail Works", "Baltic Shipyard", "Orion Motors", "Kestrel Engineering", "Vale Construction"];
-const SUPPLIERS = ["Tata Steel Supply", "Continental Bearings", "Nordic Wire Co.", "Apex Industrial", "Meridian Tools"];
+const CUSTOMERS = [
+  "Northwind Fabrication",
+  "Acme Rail Works",
+  "Baltic Shipyard",
+  "Orion Motors",
+  "Kestrel Engineering",
+  "Vale Construction",
+];
+const SUPPLIERS = [
+  "Tata Steel Supply",
+  "Continental Bearings",
+  "Nordic Wire Co.",
+  "Apex Industrial",
+  "Meridian Tools",
+];
 
 // Extra movements layered on top of deliveries, all inside the demand window.
 const TRANSFERS = [
@@ -198,7 +428,8 @@ const RESTOCKS = [
 // ---------------------------------------------------------------------------
 
 let reference = 0;
-const nextRef = (kind: string) => `${kind.slice(0, 3).toUpperCase()}/2026/${String(++reference).padStart(4, "0")}`;
+const nextRef = (kind: string) =>
+  `${kind.slice(0, 3).toUpperCase()}/2026/${String(++reference).padStart(4, "0")}`;
 
 type Line = { product_id: string; quantity: number; counted_quantity?: number | null };
 
@@ -248,7 +479,10 @@ async function postDocument(input: {
   const stamp = input.at.toISOString();
 
   if (input.leaveAsDraft && !input.stopAt) {
-    await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, { service: true, body: { created_at: stamp } });
+    await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, {
+      service: true,
+      body: { created_at: stamp },
+    });
     return created.id;
   }
 
@@ -256,13 +490,19 @@ async function postDocument(input: {
   const full = input.kind === "delivery" ? ["waiting", "ready", "done"] : ["done"];
   const steps = input.stopAt ? full.slice(0, full.indexOf(input.stopAt) + 1) : full;
   for (const next of steps) {
-    await api("POST", "/rest/v1/rpc/advance_operation", { body: { op_id: created.id, next_status: next } });
+    await api("POST", "/rest/v1/rpc/advance_operation", {
+      body: { op_id: created.id, next_status: next },
+    });
   }
 
   if (input.stopAt) {
     await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, {
       service: true,
-      body: { created_at: stamp, picked_at: stamp, ...(input.stopAt === "ready" ? { packed_at: stamp } : {}) },
+      body: {
+        created_at: stamp,
+        picked_at: stamp,
+        ...(input.stopAt === "ready" ? { packed_at: stamp } : {}),
+      },
     });
     return created.id;
   }
@@ -275,7 +515,10 @@ async function postDocument(input: {
       ...(input.kind === "delivery" ? { picked_at: stamp, packed_at: stamp } : {}),
     },
   });
-  await api("PATCH", `/rest/v1/stock_ledger?operation_id=eq.${created.id}`, { service: true, body: { created_at: stamp } });
+  await api("PATCH", `/rest/v1/stock_ledger?operation_id=eq.${created.id}`, {
+    service: true,
+    body: { created_at: stamp },
+  });
   return created.id;
 }
 
@@ -300,7 +543,8 @@ async function main() {
   console.log(`Workspace: ${workspace.name}\n`);
 
   const reset = process.argv.includes("--reset");
-  const alreadySeeded = rows(await api("GET", `/rest/v1/products?select=id&sku=eq.${MARKER_SKU}&limit=1`)).length > 0;
+  const alreadySeeded =
+    rows(await api("GET", `/rest/v1/products?select=id&sku=eq.${MARKER_SKU}&limit=1`)).length > 0;
 
   if (alreadySeeded && !reset) {
     console.log(`Already seeded — found ${MARKER_SKU}. Re-run with --reset to wipe and rebuild.`);
@@ -311,7 +555,14 @@ async function main() {
     // Child rows first: stock_ledger references operations, products and locations; stock_balances
     // references products and locations. Deleting operations cascades to operation_items.
     console.log("--reset: clearing all inventory data for this workspace");
-    for (const table of ["stock_ledger", "stock_balances", "operations", "products", "locations", "warehouses"]) {
+    for (const table of [
+      "stock_ledger",
+      "stock_balances",
+      "operations",
+      "products",
+      "locations",
+      "warehouses",
+    ]) {
       await api("DELETE", `/rest/v1/${table}?workspace_id=eq.${workspace.id}`, { service: true });
       console.log(`  cleared ${table}`);
     }
@@ -319,9 +570,34 @@ async function main() {
 
   // --- Warehouses and locations --------------------------------------------
   const warehouseSpec = [
-    { name: "Central Warehouse", code: "CEN", locations: [["Main Stock", "MAIN"], ["Rack B", "RCKB"], ["Rack C", "RCKC"], ["Goods In", "GIN"], ["Quarantine", "QTN"]] },
-    { name: "South Depot", code: "STH", locations: [["Main Stock", "MAIN"], ["Overflow Yard", "YARD"], ["Dispatch Bay", "DSP"]] },
-    { name: "North Workshop", code: "NTH", locations: [["Workshop Floor", "FLOOR"], ["Tool Store", "TOOL"]] },
+    {
+      name: "Central Warehouse",
+      code: "CEN",
+      locations: [
+        ["Main Stock", "MAIN"],
+        ["Rack B", "RCKB"],
+        ["Rack C", "RCKC"],
+        ["Goods In", "GIN"],
+        ["Quarantine", "QTN"],
+      ],
+    },
+    {
+      name: "South Depot",
+      code: "STH",
+      locations: [
+        ["Main Stock", "MAIN"],
+        ["Overflow Yard", "YARD"],
+        ["Dispatch Bay", "DSP"],
+      ],
+    },
+    {
+      name: "North Workshop",
+      code: "NTH",
+      locations: [
+        ["Workshop Floor", "FLOOR"],
+        ["Tool Store", "TOOL"],
+      ],
+    },
   ];
   const loc: Record<string, string> = {};
   for (const spec of warehouseSpec) {
@@ -392,7 +668,7 @@ async function main() {
       running += entry.delta;
       deepest = Math.min(deepest, running);
     }
-    const feasibleMinimum = -deepest;          // never let the balance go negative
+    const feasibleMinimum = -deepest; // never let the balance go negative
     const toHitTarget = product.endingTarget - running; // land exactly on the target
     return { product, quantity: Math.max(feasibleMinimum, toHitTarget, 0) };
   }).filter((entry) => entry.quantity > 0);
@@ -465,7 +741,10 @@ async function main() {
       run: async () => {
         // An adjustment sets an absolute counted figure, so read the live balance first.
         const balance = rows<{ quantity: number }>(
-          await api("GET", `/rest/v1/stock_balances?select=quantity&product_id=eq.${product.id}&location_id=eq.${MAIN}`),
+          await api(
+            "GET",
+            `/rest/v1/stock_balances?select=quantity&product_id=eq.${product.id}&location_id=eq.${MAIN}`,
+          ),
         )[0];
         const current = Number(balance?.quantity ?? 0);
         await postDocument({
@@ -475,7 +754,13 @@ async function main() {
           contact: "Cycle count",
           source: MAIN,
           notes: loss.reason,
-          lines: [{ product_id: product.id!, quantity: current, counted_quantity: Math.max(0, current - loss.qty) }],
+          lines: [
+            {
+              product_id: product.id!,
+              quantity: current,
+              counted_quantity: Math.max(0, current - loss.qty),
+            },
+          ],
           at: new Date(Date.now() - loss.day * DAY + 14 * 3_600_000),
         });
       },
@@ -505,7 +790,8 @@ async function main() {
   for (const event of events) {
     await event.run();
     done++;
-    if (done % 10 === 0 || done === events.length) console.log(`movements  ${done}/${events.length} posted`);
+    if (done % 10 === 0 || done === events.length)
+      console.log(`movements  ${done}/${events.length} posted`);
   }
 
   // Restocks above were added after opening stock was computed, so top the ending balances back up
@@ -514,20 +800,137 @@ async function main() {
   // --- Open documents ------------------------------------------------------
   // A real warehouse has a queue, not one of each. These sit at different stages so the pending
   // counters differ from one another and the delivery pipeline shows picked and packed states.
-  const open: { kind: "receipt" | "delivery" | "transfer" | "adjustment"; contact: string; source?: string; destination?: string; notes: string; lines: [string, number][]; hours: number; stopAt?: "waiting" | "ready" }[] = [
-    { kind: "receipt", contact: SUPPLIERS[0]!, destination: loc["CEN/GIN"]!, notes: "Purchase order awaiting delivery.", lines: [[MARKER_SKU, 500], ["WLD-ROD-25", 240]], hours: 52 },
-    { kind: "receipt", contact: SUPPLIERS[2]!, destination: loc["CEN/GIN"]!, notes: "Backorder, partial shipment expected.", lines: [["CU-WIRE-50", 200]], hours: 30 },
-    { kind: "receipt", contact: SUPPLIERS[3]!, destination: loc["STH/MAIN"]!, notes: "Direct to South Depot.", lines: [["GLV-NTR-L", 150], ["GOG-SFT-CL", 80]], hours: 19 },
-    { kind: "receipt", contact: SUPPLIERS[1]!, destination: loc["CEN/QTN"]!, notes: "Held in quarantine pending inspection.", lines: [["BRG-6308", 90]], hours: 7 },
-    { kind: "delivery", contact: CUSTOMERS[1]!, source: MAIN, notes: "Awaiting pick.", lines: [["BRG-6204", 24]], hours: 26 },
-    { kind: "delivery", contact: CUSTOMERS[3]!, source: MAIN, notes: "Picked, awaiting packing.", lines: [["HEX-NUT-M8", 40], ["WSH-FLT-M8", 30]], hours: 15, stopAt: "waiting" },
-    { kind: "delivery", contact: CUSTOMERS[4]!, source: MAIN, notes: "Packed, ready for dispatch.", lines: [["OIL-MTR-5L", 18]], hours: 9, stopAt: "ready" },
-    { kind: "delivery", contact: CUSTOMERS[5]!, source: loc["STH/MAIN"]!, notes: "South Depot order, awaiting pick.", lines: [["FSE-30A-BX", 12]], hours: 4 },
-    { kind: "transfer", contact: "Internal", source: MAIN, destination: SOUTH, notes: "Planned rebalance to South Depot.", lines: [["OIL-MTR-5L", 30]], hours: 6 },
-    { kind: "transfer", contact: "Internal", source: MAIN, destination: loc["NTH/FLOOR"]!, notes: "Workshop consumables top-up.", lines: [["GRS-LTH-1K", 12], ["TAP-DCT-50", 10]], hours: 3 },
-    { kind: "transfer", contact: "Internal", source: loc["CEN/RCKB"]!, destination: loc["CEN/RCKC"]!, notes: "Consolidating rack space.", lines: [[MARKER_SKU, 25]], hours: 2 },
-    { kind: "adjustment", contact: "Cycle count", source: loc["CEN/RCKB"]!, notes: "Quarterly count in progress.", lines: [["HEX-NUT-M8", 0]], hours: 5 },
-    { kind: "adjustment", contact: "Cycle count", source: loc["STH/YARD"]!, notes: "Yard recount scheduled.", lines: [["GOG-SFT-CL", 0]], hours: 1 },
+  const open: {
+    kind: "receipt" | "delivery" | "transfer" | "adjustment";
+    contact: string;
+    source?: string;
+    destination?: string;
+    notes: string;
+    lines: [string, number][];
+    hours: number;
+    stopAt?: "waiting" | "ready";
+  }[] = [
+    {
+      kind: "receipt",
+      contact: SUPPLIERS[0]!,
+      destination: loc["CEN/GIN"]!,
+      notes: "Purchase order awaiting delivery.",
+      lines: [
+        [MARKER_SKU, 500],
+        ["WLD-ROD-25", 240],
+      ],
+      hours: 52,
+    },
+    {
+      kind: "receipt",
+      contact: SUPPLIERS[2]!,
+      destination: loc["CEN/GIN"]!,
+      notes: "Backorder, partial shipment expected.",
+      lines: [["CU-WIRE-50", 200]],
+      hours: 30,
+    },
+    {
+      kind: "receipt",
+      contact: SUPPLIERS[3]!,
+      destination: loc["STH/MAIN"]!,
+      notes: "Direct to South Depot.",
+      lines: [
+        ["GLV-NTR-L", 150],
+        ["GOG-SFT-CL", 80],
+      ],
+      hours: 19,
+    },
+    {
+      kind: "receipt",
+      contact: SUPPLIERS[1]!,
+      destination: loc["CEN/QTN"]!,
+      notes: "Held in quarantine pending inspection.",
+      lines: [["BRG-6308", 90]],
+      hours: 7,
+    },
+    {
+      kind: "delivery",
+      contact: CUSTOMERS[1]!,
+      source: MAIN,
+      notes: "Awaiting pick.",
+      lines: [["BRG-6204", 24]],
+      hours: 26,
+    },
+    {
+      kind: "delivery",
+      contact: CUSTOMERS[3]!,
+      source: MAIN,
+      notes: "Picked, awaiting packing.",
+      lines: [
+        ["HEX-NUT-M8", 40],
+        ["WSH-FLT-M8", 30],
+      ],
+      hours: 15,
+      stopAt: "waiting",
+    },
+    {
+      kind: "delivery",
+      contact: CUSTOMERS[4]!,
+      source: MAIN,
+      notes: "Packed, ready for dispatch.",
+      lines: [["OIL-MTR-5L", 18]],
+      hours: 9,
+      stopAt: "ready",
+    },
+    {
+      kind: "delivery",
+      contact: CUSTOMERS[5]!,
+      source: loc["STH/MAIN"]!,
+      notes: "South Depot order, awaiting pick.",
+      lines: [["FSE-30A-BX", 12]],
+      hours: 4,
+    },
+    {
+      kind: "transfer",
+      contact: "Internal",
+      source: MAIN,
+      destination: SOUTH,
+      notes: "Planned rebalance to South Depot.",
+      lines: [["OIL-MTR-5L", 30]],
+      hours: 6,
+    },
+    {
+      kind: "transfer",
+      contact: "Internal",
+      source: MAIN,
+      destination: loc["NTH/FLOOR"]!,
+      notes: "Workshop consumables top-up.",
+      lines: [
+        ["GRS-LTH-1K", 12],
+        ["TAP-DCT-50", 10],
+      ],
+      hours: 3,
+    },
+    {
+      kind: "transfer",
+      contact: "Internal",
+      source: loc["CEN/RCKB"]!,
+      destination: loc["CEN/RCKC"]!,
+      notes: "Consolidating rack space.",
+      lines: [[MARKER_SKU, 25]],
+      hours: 2,
+    },
+    {
+      kind: "adjustment",
+      contact: "Cycle count",
+      source: loc["CEN/RCKB"]!,
+      notes: "Quarterly count in progress.",
+      lines: [["HEX-NUT-M8", 0]],
+      hours: 5,
+    },
+    {
+      kind: "adjustment",
+      contact: "Cycle count",
+      source: loc["STH/YARD"]!,
+      notes: "Yard recount scheduled.",
+      lines: [["GOG-SFT-CL", 0]],
+      hours: 1,
+    },
   ];
 
   for (const doc of open) {
@@ -551,15 +954,28 @@ async function main() {
     });
   }
   const count = (kind: string) => open.filter((d) => d.kind === kind).length;
-  console.log(`open       ${count("receipt")} receipts, ${count("delivery")} deliveries, ${count("transfer")} transfers, ${count("adjustment")} adjustments`);
+  console.log(
+    `open       ${count("receipt")} receipts, ${count("delivery")} deliveries, ${count("transfer")} transfers, ${count("adjustment")} adjustments`,
+  );
 
   // --- A reversed document, so the audit trail has a correction to show ------
-  const reversible = rows<{ id: string; reference: string; contact: string; source_location_id: string | null }>(
-    await api("GET", "/rest/v1/operations?select=id,reference,contact,source_location_id&kind=eq.delivery&status=eq.done&order=created_at.desc&limit=1"),
+  const reversible = rows<{
+    id: string;
+    reference: string;
+    contact: string;
+    source_location_id: string | null;
+  }>(
+    await api(
+      "GET",
+      "/rest/v1/operations?select=id,reference,contact,source_location_id&kind=eq.delivery&status=eq.done&order=created_at.desc&limit=1",
+    ),
   )[0];
   if (reversible) {
     const legs = rows<{ product_id: string; location_id: string; delta: number }>(
-      await api("GET", `/rest/v1/stock_ledger?select=product_id,location_id,delta&operation_id=eq.${reversible.id}`),
+      await api(
+        "GET",
+        `/rest/v1/stock_ledger?select=product_id,location_id,delta&operation_id=eq.${reversible.id}`,
+      ),
     );
     if (legs.length) {
       await postDocument({
@@ -571,7 +987,10 @@ async function main() {
         // Same marker the app writes, so the UI links the two documents and RLS treats it as a
         // reversal (manager-only). The seeder runs as a manager, so this is allowed.
         notes: `Reversal of ${reversible.reference}. Reason: Customer refused delivery, stock returned to shelf`,
-        lines: legs.map((leg) => ({ product_id: leg.product_id, quantity: Math.abs(Number(leg.delta)) })),
+        lines: legs.map((leg) => ({
+          product_id: leg.product_id,
+          quantity: Math.abs(Number(leg.delta)),
+        })),
         at: new Date(Date.now() - 20 * 3_600_000),
       });
       console.log(`reversal   counter-document posted against ${reversible.reference}`);
@@ -583,18 +1002,36 @@ async function main() {
     await api("POST", "/rest/v1/operations", {
       prefer: "return=representation",
       body: {
-        workspace_id: workspace.id, reference: nextRef("delivery"), kind: "delivery", status: "draft",
-        contact: CUSTOMERS[2]!, source_location_id: MAIN, notes: "Customer cancelled before picking.", created_by: userId,
+        workspace_id: workspace.id,
+        reference: nextRef("delivery"),
+        kind: "delivery",
+        status: "draft",
+        contact: CUSTOMERS[2]!,
+        source_location_id: MAIN,
+        notes: "Customer cancelled before picking.",
+        created_by: userId,
       },
     }),
   )[0];
   if (cancelled) {
     await api("POST", "/rest/v1/operation_items", {
-      body: [{ workspace_id: workspace.id, operation_id: cancelled.id, product_id: bySku.get("CNV-BLT-5M")!.id!, quantity: 3 }],
+      body: [
+        {
+          workspace_id: workspace.id,
+          operation_id: cancelled.id,
+          product_id: bySku.get("CNV-BLT-5M")!.id!,
+          quantity: 3,
+        },
+      ],
     });
-    await api("POST", "/rest/v1/rpc/advance_operation", { body: { op_id: cancelled.id, next_status: "canceled" } });
+    await api("POST", "/rest/v1/rpc/advance_operation", {
+      body: { op_id: cancelled.id, next_status: "canceled" },
+    });
     const stamp = new Date(Date.now() - 33 * 3_600_000).toISOString();
-    await api("PATCH", `/rest/v1/operations?id=eq.${cancelled.id}`, { service: true, body: { created_at: stamp } });
+    await api("PATCH", `/rest/v1/operations?id=eq.${cancelled.id}`, {
+      service: true,
+      body: { created_at: stamp },
+    });
     console.log("cancelled  1 abandoned delivery");
   }
 

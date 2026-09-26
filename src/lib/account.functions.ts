@@ -33,7 +33,10 @@ export const registerAccount = createServerFn({ method: "POST" })
       : USERNAME.test(identifier)
         ? `${identifier}@${USERNAME_DOMAIN}`
         : null;
-    if (!email) throw new Error("Enter an email address, or a username of 2–30 characters using letters, numbers, dot, dash, or underscore.");
+    if (!email)
+      throw new Error(
+        "Enter an email address, or a username of 2–30 characters using letters, numbers, dot, dash, or underscore.",
+      );
     if (password.length < 8) throw new Error("Use a password of at least 8 characters.");
     if (password.length > 72) throw new Error("Passwords cannot be longer than 72 characters.");
 

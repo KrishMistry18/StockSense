@@ -57,7 +57,10 @@ async function request(method: string, path: string, body?: unknown, prefer?: st
   const text = await response.text();
   const parsed: unknown = text ? JSON.parse(text) : null;
   if (!response.ok) {
-    const message = typeof parsed === "object" && parsed !== null && "msg" in parsed ? String((parsed as { msg: unknown }).msg) : text;
+    const message =
+      typeof parsed === "object" && parsed !== null && "msg" in parsed
+        ? String((parsed as { msg: unknown }).msg)
+        : text;
     throw new Error(`${method} ${path} -> ${response.status}: ${message}`);
   }
   return parsed;
@@ -80,18 +83,23 @@ async function findUser(email: string): Promise<{ id: string } | null> {
 async function main() {
   console.log(`Target: ${url}\n`);
 
-  const workspaces = (await request("GET", "/rest/v1/workspaces?select=id,name&order=created_at.asc&limit=1")) as
-    | { id: string; name: string }[]
-    | null;
+  const workspaces = (await request(
+    "GET",
+    "/rest/v1/workspaces?select=id,name&order=created_at.asc&limit=1",
+  )) as { id: string; name: string }[] | null;
   let workspace = workspaces?.[0];
 
   if (!workspace) {
     // return=representation, or PostgREST answers 201 with an empty body.
-    const created = (await request("POST", "/rest/v1/workspaces", { name: "StockSense Demo" }, "return=representation")) as
-      | { id: string; name: string }[]
-      | null;
+    const created = (await request(
+      "POST",
+      "/rest/v1/workspaces",
+      { name: "StockSense Demo" },
+      "return=representation",
+    )) as { id: string; name: string }[] | null;
     workspace = created?.[0];
-    if (!workspace) throw new Error("Could not create a workspace. Has scripts/schema.sql been run?");
+    if (!workspace)
+      throw new Error("Could not create a workspace. Has scripts/schema.sql been run?");
     console.log(`Created workspace "${workspace.name}"`);
   }
   console.log(`Workspace: ${workspace.name} (${workspace.id})\n`);
