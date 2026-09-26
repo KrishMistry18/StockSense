@@ -39,14 +39,22 @@ The app is not tied to any particular Supabase project. To run it on one you con
 2. Open **SQL Editor → New query**, paste all of [`scripts/schema.sql`](scripts/schema.sql), and run
    it. That file is every migration concatenated in order, so one run produces a fully migrated
    database: tables, row-level security policies, and the stock-movement functions.
-3. From **Project Settings → API**, copy the project URL and publishable key into `.env`.
-4. `bun run dev`.
+3. From **Project Settings → API**, copy the project URL and keys into `.env`
+   (see [`.env.example`](.env.example)).
+4. Optional demo accounts: `bun run scripts/create-demo-users.ts`
+5. `bun run dev`.
 
-Sign in with the demo accounts the schema seeds (`admin`, `manager`, `staff`, password
-`StockSense#2026`), or create your own account.
+Step 4 creates `admin`, `manager`, and `staff`, password `StockSense#2026`, pre-confirmed so they
+work while email confirmation stays on for real sign-ups. Skip it and register an account instead if
+you prefer.
 
-> **Before real users:** drop those three accounts and delete
-> `drizzle/migrations/0003_demo_accounts.sql`. Their password is committed to this repository.
+> **Never create users with raw SQL.** GoTrue scans several `auth.users` columns into non-nullable
+> strings, and an `INSERT` that omits them leaves NULLs that take down the entire auth API with
+> `500 Database error finding users` — unrecoverable through the API, since deleting such a row
+> reads it first. Always go through the Auth Admin API, as that script does. If you hit this,
+> [`scripts/repair-auth-users.sql`](scripts/repair-auth-users.sql) heals it.
+
+> **Before real users:** drop those three accounts. Their password is committed to this repository.
 
 ## Database
 
