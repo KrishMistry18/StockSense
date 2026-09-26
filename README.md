@@ -13,6 +13,39 @@ StockSense is a full-featured inventory operations platform built for warehouse 
 
 ---
 
+## Sign-in Credentials (For Judge's Reference)
+
+These three accounts are **already registered and email-confirmed** on the live backend. No sign-up,
+no email verification, no setup required — sign in and start using the app immediately.
+
+| Role | Username | Email | Password |
+| --- | --- | --- | --- |
+| **Owner** | `admin` | `admin@stocksense.local` | `StockSense#2026` |
+| **Manager** | `manager` | `manager@stocksense.local` | `StockSense#2026` |
+| **Staff** | `staff` | `staff@stocksense.local` | `StockSense#2026` |
+
+Either the username or the full email works — a bare username is mapped onto the reserved
+`stocksense.local` domain.
+
+**Sign in as all three to see the permission model.** The same build behaves differently for each,
+and the differences are enforced by PostgreSQL row-level security policies rather than by hiding
+buttons — the database refuses the action regardless of how the request is made:
+
+- **`admin` (owner)** sees the **Team** screen and can grant, revoke and remove access.
+- **`manager`** runs operations — catalogue, warehouses, purchasing, document reversal — but has **no
+  Team screen** and cannot change anyone's access.
+- **`staff`** records and validates stock movements, but cannot create products, add warehouses, raise
+  replenishment orders, or reverse a validated document.
+
+The workspace is pre-populated with 3 warehouses, 10 locations, 25 products and 8 weeks of movement
+history, so every screen has real data on first load.
+
+> [!WARNING]
+> These are evaluation credentials, published deliberately for review. Delete or rotate all three
+> `@stocksense.local` accounts before onboarding real warehouse staff.
+
+---
+
 ## Table of Contents
 
 - [Product Overview](#product-overview)
@@ -35,6 +68,7 @@ StockSense is a full-featured inventory operations platform built for warehouse 
 - [Local Development](#local-development)
 - [Database Setup & Migrations](#database-setup--migrations)
 - [Environment Variables](#environment-variables)
+- [Sign-in Credentials (For Judge's Reference)](#sign-in-credentials-for-judges-reference)
 - [Demo Accounts & Seed Data](#demo-accounts--seed-data)
 - [Testing & Quality Assurance](#testing--quality-assurance)
 - [Production Deployment on Vercel](#production-deployment-on-vercel)
@@ -510,12 +544,18 @@ If you deployed an earlier version of StockSense:
 bun run scripts/create-demo-users.ts
 ```
 
+Only needed when setting up a **fresh** database — the accounts already exist on the live backend
+(see [Sign-in Credentials](#sign-in-credentials-for-judges-reference)).
+
 Creates pre-confirmed accounts via the Supabase Auth Admin API:
 
-- `admin` (`admin@stocksense.local`) — Role: `owner` / `manager`
+- `admin` (`admin@stocksense.local`) — Role: `owner`
 - `manager` (`manager@stocksense.local`) — Role: `manager`
 - `staff` (`staff@stocksense.local`) — Role: `staff`
-- Default password: `StockSense#2026`
+- Password for all three: `StockSense#2026`
+
+Re-running is safe: existing accounts have their password reset and address re-confirmed rather than
+erroring.
 
 > [!NOTE]
 > **Why the Auth Admin API?**
