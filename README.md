@@ -24,22 +24,37 @@ The dev server runs on http://localhost:8080.
 
 ## Configuration
 
-Copy the Supabase values into `.env`:
+Copy `.env.example` to `.env` and fill it in. Every value is read from the environment — no project
+reference is hardcoded anywhere in `src`, so pointing the app at a different backend is a config
+change and nothing more.
 
-| Variable                        | Purpose                            |
-| ------------------------------- | ---------------------------------- |
-| `VITE_SUPABASE_URL`             | Supabase project URL               |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public anon/publishable key        |
-| `VITE_SUPABASE_PROJECT_ID`      | Supabase project ref               |
-| `LOVABLE_API_KEY`               | AI gateway key for the AI insights |
+Only the Supabase variables are required. Without an AI key the app runs normally and the AI
+insights screen reports that analysis is not configured.
 
-Without `LOVABLE_API_KEY` the app runs fine; the AI insights screen reports that analysis is not
-configured. Point `src/lib/warehouse-ai.server.ts` at a different provider to swap it out.
+## Connect your own backend
+
+The app is not tied to any particular Supabase project. To run it on one you control:
+
+1. Create a project at [supabase.com](https://supabase.com/dashboard) (the free tier is enough).
+2. Open **SQL Editor → New query**, paste all of [`scripts/schema.sql`](scripts/schema.sql), and run
+   it. That file is every migration concatenated in order, so one run produces a fully migrated
+   database: tables, row-level security policies, and the stock-movement functions.
+3. From **Project Settings → API**, copy the project URL and publishable key into `.env`.
+4. `bun run dev`.
+
+Sign in with the demo accounts the schema seeds (`admin`, `manager`, `staff`, password
+`StockSense#2026`), or create your own account.
+
+> **Before real users:** drop those three accounts and delete
+> `drizzle/migrations/0003_demo_accounts.sql`. Their password is committed to this repository.
 
 ## Database
 
 Schema lives in `drizzle/migrations` as plain SQL, applied in the order recorded in
 `drizzle/migrations/meta/_journal.json`. `drizzle/schema.ts` is intentionally blank.
+
+`scripts/schema.sql` is generated from those migrations for one-shot setup. After adding a
+migration, regenerate it rather than editing it by hand.
 
 ## Key concepts
 
