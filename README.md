@@ -385,7 +385,7 @@ StockSense/
 │   │   └── 0006_owner_role.sql
 │   └── schema.ts                 # Drizzle schema interface
 │
-├── public/                       # Static public assets (favicon.ico, robots.txt)
+├── public/                       # Static public assets (favicon.svg, favicon.ico, robots.txt)
 │
 ├── scripts/                      # Database and operational utilities
 │   ├── create-demo-users.ts      # Auth Admin API demo account provisioning
