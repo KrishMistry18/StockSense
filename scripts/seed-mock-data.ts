@@ -148,6 +148,18 @@ const CATALOGUE: Product[] = [
   { sku: "GSK-SET-09", name: "Gasket Set 09", category: "Components", unit: "Sets", reorderPoint: 25, endingTarget: 0, shipDays: regular(6, 18) },
   // Never ships: Replenishment must say "No recent demand" rather than inventing a forecast.
   { sku: "PNT-DRM-20", name: "Paint Drum 20L", category: "Finishing", unit: "Drums", reorderPoint: 20, endingTarget: 58, shipDays: [] },
+  { sku: "PNT-THN-5L", name: "Paint Thinner 5L", category: "Finishing", unit: "Cans", reorderPoint: 15, endingTarget: 42, shipDays: [] },
+  { sku: "HEX-NUT-M8", name: "Hex Nut M8 Bag", category: "Fasteners", unit: "Bags", reorderPoint: 150, endingTarget: 480, shipDays: regular(2, 30) },
+  { sku: "WSH-FLT-M8", name: "Flat Washer M8 Bag", category: "Fasteners", unit: "Bags", reorderPoint: 120, endingTarget: 96, shipDays: regular(3, 26) },
+  { sku: "GLV-NTR-L", name: "Nitrile Glove L", category: "Safety", unit: "Boxes", reorderPoint: 60, endingTarget: 52, shipDays: regular(2, 17) },
+  { sku: "GOG-SFT-CL", name: "Safety Goggles", category: "Safety", unit: "Units", reorderPoint: 35, endingTarget: 140, shipDays: regular(5, 22) },
+  { sku: "TAP-DCT-50", name: "Duct Tape 50m", category: "Consumables", unit: "Rolls", reorderPoint: 40, endingTarget: 31, shipDays: erratic(6, 5, 55) },
+  { sku: "GRS-LTH-1K", name: "Lithium Grease 1kg", category: "Lubricants", unit: "Tubs", reorderPoint: 25, endingTarget: 88, shipDays: regular(6, 15) },
+  { sku: "BRG-6308", name: "Bearing 6308", category: "Components", unit: "Units", reorderPoint: 45, endingTarget: 38, shipDays: regular(4, 21) },
+  { sku: "VLV-BAL-2I", name: "Ball Valve 2in", category: "Components", unit: "Units", reorderPoint: 18, endingTarget: 14, shipDays: erratic(4, 2, 22) },
+  { sku: "CHN-RLR-3M", name: "Roller Chain 3m", category: "Machinery", unit: "Lengths", reorderPoint: 8, endingTarget: 26, shipDays: regular(9, 7) },
+  { sku: "ELC-CBL-10", name: "Control Cable 10m", category: "Electrical", unit: "Coils", reorderPoint: 30, endingTarget: 24, shipDays: regular(3, 12) },
+  { sku: "FSE-30A-BX", name: "Fuse 30A Box", category: "Electrical", unit: "Boxes", reorderPoint: 22, endingTarget: 110, shipDays: regular(8, 14) },
 ];
 
 const CUSTOMERS = ["Northwind Fabrication", "Acme Rail Works", "Baltic Shipyard", "Orion Motors", "Kestrel Engineering", "Vale Construction"];
@@ -155,16 +167,30 @@ const SUPPLIERS = ["Tata Steel Supply", "Continental Bearings", "Nordic Wire Co.
 
 // Extra movements layered on top of deliveries, all inside the demand window.
 const TRANSFERS = [
+  { day: 47, sku: "GOG-SFT-CL", qty: 45 },
   { day: 40, sku: MARKER_SKU, qty: 60 },
+  { day: 34, sku: "HEX-NUT-M8", qty: 120 },
   { day: 22, sku: "BLT-M10-BX", qty: 80 },
+  { day: 16, sku: "GRS-LTH-1K", qty: 20 },
   { day: 9, sku: "FLT-CRT-20", qty: 40 },
+  { day: 4, sku: "FSE-30A-BX", qty: 25 },
 ];
-const SHRINKAGE = [{ day: 17, sku: "SFT-HLM-01", qty: 6, reason: "Cycle count — damaged in storage" }];
+const SHRINKAGE = [
+  { day: 43, sku: "TAP-DCT-50", qty: 9, reason: "Cycle count — shortfall against recorded stock" },
+  { day: 29, sku: "GLV-NTR-L", qty: 4, reason: "Cycle count — packaging damaged" },
+  { day: 17, sku: "SFT-HLM-01", qty: 6, reason: "Cycle count — damaged in storage" },
+  { day: 6, sku: "ELC-CBL-10", qty: 3, reason: "Cycle count — offcuts unaccounted for" },
+];
 // Mid-window restocks, so Move history is not a wall of outbound movement.
 const RESTOCKS = [
+  { day: 50, sku: "HEX-NUT-M8", qty: 500 },
   { day: 46, sku: "BLT-M10-BX", qty: 400 },
+  { day: 38, sku: "GLV-NTR-L", qty: 180 },
   { day: 31, sku: MARKER_SKU, qty: 260 },
+  { day: 24, sku: "BRG-6308", qty: 150 },
+  { day: 19, sku: "WSH-FLT-M8", qty: 240 },
   { day: 15, sku: "CU-WIRE-50", qty: 180 },
+  { day: 8, sku: "GRS-LTH-1K", qty: 60 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -188,6 +214,8 @@ async function postDocument(input: {
   lines: Line[];
   at: Date;
   leaveAsDraft?: boolean;
+  /** Advance a delivery only as far as this stage, so the pipeline shows picked and packed states. */
+  stopAt?: "waiting" | "ready";
 }): Promise<string> {
   const created = rows<{ id: string }>(
     await api("POST", "/rest/v1/operations", {
@@ -217,15 +245,28 @@ async function postDocument(input: {
     })),
   });
 
-  if (input.leaveAsDraft) return created.id;
+  const stamp = input.at.toISOString();
+
+  if (input.leaveAsDraft && !input.stopAt) {
+    await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, { service: true, body: { created_at: stamp } });
+    return created.id;
+  }
 
   // Deliveries must walk pick -> pack -> dispatch; everything else validates in one step.
-  const steps = input.kind === "delivery" ? ["waiting", "ready", "done"] : ["done"];
+  const full = input.kind === "delivery" ? ["waiting", "ready", "done"] : ["done"];
+  const steps = input.stopAt ? full.slice(0, full.indexOf(input.stopAt) + 1) : full;
   for (const next of steps) {
     await api("POST", "/rest/v1/rpc/advance_operation", { body: { op_id: created.id, next_status: next } });
   }
 
-  const stamp = input.at.toISOString();
+  if (input.stopAt) {
+    await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, {
+      service: true,
+      body: { created_at: stamp, picked_at: stamp, ...(input.stopAt === "ready" ? { packed_at: stamp } : {}) },
+    });
+    return created.id;
+  }
+
   await api("PATCH", `/rest/v1/operations?id=eq.${created.id}`, {
     service: true,
     body: {
@@ -278,8 +319,9 @@ async function main() {
 
   // --- Warehouses and locations --------------------------------------------
   const warehouseSpec = [
-    { name: "Central Warehouse", code: "CEN", locations: [["Main Stock", "MAIN"], ["Rack B", "RCKB"], ["Goods In", "GIN"]] },
-    { name: "South Depot", code: "STH", locations: [["Main Stock", "MAIN"], ["Overflow Yard", "YARD"]] },
+    { name: "Central Warehouse", code: "CEN", locations: [["Main Stock", "MAIN"], ["Rack B", "RCKB"], ["Rack C", "RCKC"], ["Goods In", "GIN"], ["Quarantine", "QTN"]] },
+    { name: "South Depot", code: "STH", locations: [["Main Stock", "MAIN"], ["Overflow Yard", "YARD"], ["Dispatch Bay", "DSP"]] },
+    { name: "North Workshop", code: "NTH", locations: [["Workshop Floor", "FLOOR"], ["Tool Store", "TOOL"]] },
   ];
   const loc: Record<string, string> = {};
   for (const spec of warehouseSpec) {
@@ -469,45 +511,92 @@ async function main() {
   // Restocks above were added after opening stock was computed, so top the ending balances back up
   // is unnecessary — they simply leave more on hand, which is realistic.
 
-  // --- Open documents, so the dashboard's pending counters are not all zero --
-  await postDocument({
-    workspaceId: workspace.id,
-    userId,
-    kind: "receipt",
-    contact: SUPPLIERS[0]!,
-    destination: loc["CEN/GIN"]!,
-    notes: "Purchase order awaiting delivery.",
-    lines: [
-      { product_id: bySku.get(MARKER_SKU)!.id!, quantity: 500 },
-      { product_id: bySku.get("WLD-ROD-25")!.id!, quantity: 240 },
-    ],
-    at: new Date(Date.now() - 2 * DAY),
-    leaveAsDraft: true,
-  });
-  await postDocument({
-    workspaceId: workspace.id,
-    userId,
-    kind: "delivery",
-    contact: CUSTOMERS[1]!,
-    source: MAIN,
-    notes: "Awaiting pick.",
-    lines: [{ product_id: bySku.get("BRG-6204")!.id!, quantity: 24 }],
-    at: new Date(Date.now() - 1 * DAY),
-    leaveAsDraft: true,
-  });
-  await postDocument({
-    workspaceId: workspace.id,
-    userId,
-    kind: "transfer",
-    contact: "Internal",
-    source: MAIN,
-    destination: SOUTH,
-    notes: "Planned rebalance to South Depot.",
-    lines: [{ product_id: bySku.get("OIL-MTR-5L")!.id!, quantity: 30 }],
-    at: new Date(Date.now() - 6 * 3_600_000),
-    leaveAsDraft: true,
-  });
-  console.log("drafts     3 open documents (pending receipt, delivery, transfer)");
+  // --- Open documents ------------------------------------------------------
+  // A real warehouse has a queue, not one of each. These sit at different stages so the pending
+  // counters differ from one another and the delivery pipeline shows picked and packed states.
+  const open: { kind: "receipt" | "delivery" | "transfer" | "adjustment"; contact: string; source?: string; destination?: string; notes: string; lines: [string, number][]; hours: number; stopAt?: "waiting" | "ready" }[] = [
+    { kind: "receipt", contact: SUPPLIERS[0]!, destination: loc["CEN/GIN"]!, notes: "Purchase order awaiting delivery.", lines: [[MARKER_SKU, 500], ["WLD-ROD-25", 240]], hours: 52 },
+    { kind: "receipt", contact: SUPPLIERS[2]!, destination: loc["CEN/GIN"]!, notes: "Backorder, partial shipment expected.", lines: [["CU-WIRE-50", 200]], hours: 30 },
+    { kind: "receipt", contact: SUPPLIERS[3]!, destination: loc["STH/MAIN"]!, notes: "Direct to South Depot.", lines: [["GLV-NTR-L", 150], ["GOG-SFT-CL", 80]], hours: 19 },
+    { kind: "receipt", contact: SUPPLIERS[1]!, destination: loc["CEN/QTN"]!, notes: "Held in quarantine pending inspection.", lines: [["BRG-6308", 90]], hours: 7 },
+    { kind: "delivery", contact: CUSTOMERS[1]!, source: MAIN, notes: "Awaiting pick.", lines: [["BRG-6204", 24]], hours: 26 },
+    { kind: "delivery", contact: CUSTOMERS[3]!, source: MAIN, notes: "Picked, awaiting packing.", lines: [["HEX-NUT-M8", 40], ["WSH-FLT-M8", 30]], hours: 15, stopAt: "waiting" },
+    { kind: "delivery", contact: CUSTOMERS[4]!, source: MAIN, notes: "Packed, ready for dispatch.", lines: [["OIL-MTR-5L", 18]], hours: 9, stopAt: "ready" },
+    { kind: "delivery", contact: CUSTOMERS[5]!, source: loc["STH/MAIN"]!, notes: "South Depot order, awaiting pick.", lines: [["FSE-30A-BX", 12]], hours: 4 },
+    { kind: "transfer", contact: "Internal", source: MAIN, destination: SOUTH, notes: "Planned rebalance to South Depot.", lines: [["OIL-MTR-5L", 30]], hours: 6 },
+    { kind: "transfer", contact: "Internal", source: MAIN, destination: loc["NTH/FLOOR"]!, notes: "Workshop consumables top-up.", lines: [["GRS-LTH-1K", 12], ["TAP-DCT-50", 10]], hours: 3 },
+    { kind: "transfer", contact: "Internal", source: loc["CEN/RCKB"]!, destination: loc["CEN/RCKC"]!, notes: "Consolidating rack space.", lines: [[MARKER_SKU, 25]], hours: 2 },
+    { kind: "adjustment", contact: "Cycle count", source: loc["CEN/RCKB"]!, notes: "Quarterly count in progress.", lines: [["HEX-NUT-M8", 0]], hours: 5 },
+    { kind: "adjustment", contact: "Cycle count", source: loc["STH/YARD"]!, notes: "Yard recount scheduled.", lines: [["GOG-SFT-CL", 0]], hours: 1 },
+  ];
+
+  for (const doc of open) {
+    await postDocument({
+      workspaceId: workspace.id,
+      userId,
+      kind: doc.kind,
+      contact: doc.contact,
+      ...(doc.source ? { source: doc.source } : {}),
+      ...(doc.destination ? { destination: doc.destination } : {}),
+      notes: doc.notes,
+      lines: doc.lines.map(([sku, qty]) => ({
+        product_id: bySku.get(sku)!.id!,
+        quantity: qty,
+        // An adjustment needs a counted figure; leave it equal so nothing moves if validated as-is.
+        ...(doc.kind === "adjustment" ? { counted_quantity: qty } : {}),
+      })),
+      at: new Date(Date.now() - doc.hours * 3_600_000),
+      leaveAsDraft: true,
+      ...(doc.stopAt ? { stopAt: doc.stopAt } : {}),
+    });
+  }
+  const count = (kind: string) => open.filter((d) => d.kind === kind).length;
+  console.log(`open       ${count("receipt")} receipts, ${count("delivery")} deliveries, ${count("transfer")} transfers, ${count("adjustment")} adjustments`);
+
+  // --- A reversed document, so the audit trail has a correction to show ------
+  const reversible = rows<{ id: string; reference: string; contact: string; source_location_id: string | null }>(
+    await api("GET", "/rest/v1/operations?select=id,reference,contact,source_location_id&kind=eq.delivery&status=eq.done&order=created_at.desc&limit=1"),
+  )[0];
+  if (reversible) {
+    const legs = rows<{ product_id: string; location_id: string; delta: number }>(
+      await api("GET", `/rest/v1/stock_ledger?select=product_id,location_id,delta&operation_id=eq.${reversible.id}`),
+    );
+    if (legs.length) {
+      await postDocument({
+        workspaceId: workspace.id,
+        userId,
+        kind: "receipt",
+        contact: reversible.contact,
+        destination: legs[0]!.location_id,
+        // Same marker the app writes, so the UI links the two documents and RLS treats it as a
+        // reversal (manager-only). The seeder runs as a manager, so this is allowed.
+        notes: `Reversal of ${reversible.reference}. Reason: Customer refused delivery, stock returned to shelf`,
+        lines: legs.map((leg) => ({ product_id: leg.product_id, quantity: Math.abs(Number(leg.delta)) })),
+        at: new Date(Date.now() - 20 * 3_600_000),
+      });
+      console.log(`reversal   counter-document posted against ${reversible.reference}`);
+    }
+  }
+
+  // --- A cancelled document, so not every closed document is a success -------
+  const cancelled = rows<{ id: string }>(
+    await api("POST", "/rest/v1/operations", {
+      prefer: "return=representation",
+      body: {
+        workspace_id: workspace.id, reference: nextRef("delivery"), kind: "delivery", status: "draft",
+        contact: CUSTOMERS[2]!, source_location_id: MAIN, notes: "Customer cancelled before picking.", created_by: userId,
+      },
+    }),
+  )[0];
+  if (cancelled) {
+    await api("POST", "/rest/v1/operation_items", {
+      body: [{ workspace_id: workspace.id, operation_id: cancelled.id, product_id: bySku.get("CNV-BLT-5M")!.id!, quantity: 3 }],
+    });
+    await api("POST", "/rest/v1/rpc/advance_operation", { body: { op_id: cancelled.id, next_status: "canceled" } });
+    const stamp = new Date(Date.now() - 33 * 3_600_000).toISOString();
+    await api("PATCH", `/rest/v1/operations?id=eq.${cancelled.id}`, { service: true, body: { created_at: stamp } });
+    console.log("cancelled  1 abandoned delivery");
+  }
 
   console.log("\nSeeded. Sign in and check Dashboard, Replenishment, and Move history.");
 }
