@@ -65,17 +65,20 @@ Three membership states, all enforced by row-level security rather than by hidin
 
 | State | Can do |
 | --- | --- |
-| **manager** | Everything: catalogue, warehouses, purchasing, document reversal, team administration |
+| **owner** | Runs the team — grants, revokes and removes access — plus everything a manager can do |
+| **manager** | Runs operations: catalogue, warehouses, purchasing, document reversal. Cannot change anyone's access |
 | **staff** | Record and validate receipts, deliveries, transfers and adjustments; read everything else |
-| **pending** | Nothing. Every query returns empty until a manager grants a role |
+| **pending** | Nothing. Every query returns empty until the owner grants a role |
 
 Registering an account gives no access to anything. A new person registers, enters the workspace
-invite code to request access, and a manager grants them a role from the **Team** screen. Membership
+invite code to request access, and the owner grants them a role from the **Team** screen. Membership
 is the gate, not email verification — an unverified address cannot read a single row of stock.
 
-A workspace always keeps at least one manager, and nobody can revoke their own manager access.
-Removing someone leaves the documents and ledger rows they recorded untouched, because stock
-accounting has to stay auditable.
+Granting access is deliberately separated from running the warehouse: an operational manager cannot
+reach the Team screen, so editing the catalogue never implies the ability to promote people. A
+workspace always keeps at least one owner, and nobody can give away their own owner access. Removing
+someone leaves the documents and ledger rows they recorded untouched, because stock accounting has to
+stay auditable.
 
 Step 4 creates `admin`, `manager`, and `staff`, password `StockSense#2026`, pre-confirmed so they
 work while email confirmation stays on for real sign-ups. Skip it and register an account instead if

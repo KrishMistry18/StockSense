@@ -26,12 +26,20 @@ type OperationProduct = { operation_id: string; product_id: string };
  * Workspace roles. The database is the authority — managers-only rules live in RLS policies — and
  * the UI mirrors them so a member is never offered an action the server will refuse.
  */
-type Role = "manager" | "staff";
-const CAN: Record<Role, { catalogue: boolean; warehouses: boolean; reverse: boolean; purchase: boolean }> = {
-  manager: { catalogue: true, warehouses: true, reverse: true, purchase: true },
-  staff: { catalogue: false, warehouses: false, reverse: false, purchase: false },
+type Role = "owner" | "manager" | "staff";
+/**
+ * `team` is separate from the operational permissions on purpose. Granting and revoking access is a
+ * different kind of authority from running the warehouse, so an operational manager does not get it.
+ */
+const CAN: Record<Role, { catalogue: boolean; warehouses: boolean; reverse: boolean; purchase: boolean; team: boolean }> = {
+  owner:   { catalogue: true,  warehouses: true,  reverse: true,  purchase: true,  team: true  },
+  manager: { catalogue: true,  warehouses: true,  reverse: true,  purchase: true,  team: false },
+  staff:   { catalogue: false, warehouses: false, reverse: false, purchase: false, team: false },
 };
+const ROLES: Role[] = ["owner", "manager", "staff"];
+const asRole = (value: string | null | undefined): Role => (ROLES as string[]).includes(value ?? "") ? (value as Role) : "staff";
 const STAFF_LOCKED = "Managers only. Your role can record and validate stock movements.";
+const OWNER_LOCKED = "Only the workspace owner can administer team access.";
 type Ledger = { id: string; delta: number; balance_after: number; created_at: string; created_by: string; operation_id: string | null; products?: { name: string; sku: string } | null; locations?: { name: string } | null; operations?: { reference: string; kind: string; notes: string } | null };
 
 const nav: { label: string; view: View; icon: typeof Gauge }[] = [
@@ -87,7 +95,17 @@ export function InventoryApp() {
   const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
-    const { data: memberships } = await supabase.from("workspace_members").select("role, workspace_id, workspaces(id,name,join_code)").limit(1);
+    // Must be filtered to the signed-in user. Row-level security lets a member read *every*
+    // membership row in their workspace, so an unfiltered limit(1) returns an arbitrary row — which
+    // handed a staff account somebody else's manager role and unlocked the whole manager UI.
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) { setWorkspace(null); setDataLoading(false); return; }
+    const { data: memberships } = await supabase
+      .from("workspace_members")
+      .select("role, workspace_id, workspaces(id,name,join_code)")
+      .eq("user_id", uid)
+      .limit(1);
     const membership = memberships?.[0];
     const selected = membership?.workspaces as Workspace | null | undefined;
     // A pending member can read their own membership row but not the workspace behind it, which is
@@ -95,7 +113,7 @@ export function InventoryApp() {
     setPending(membership?.role === "pending");
     if (!selected) { setWorkspace(null); setDataLoading(false); return; }
     setWorkspace(selected);
-    setRole(membership?.role === "manager" ? "manager" : "staff");
+    setRole(asRole(membership?.role));
     const demandSince = new Date(Date.now() - DEMAND_WINDOW_DAYS * 86400000).toISOString();
     const [p, l, b, o, h, oi, d] = await Promise.all([
       supabase.from("products").select("id,name,sku,category,unit,reorder_point,archived").eq("workspace_id", selected.id).order("name"),
@@ -153,7 +171,7 @@ export function InventoryApp() {
           overlay would be useless. */}
       <aside className={`${sidebar ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} app-sidebar w-64 shrink-0 flex-col transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen ${collapsed ? "lg:w-[72px]" : "lg:w-64"}`}>
         <div className={`flex h-20 items-center gap-3 border-b px-5 ${collapsed ? "lg:justify-center lg:px-0" : ""}`}><div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"><Boxes className="size-5" /></div><div className={collapsed ? "lg:hidden" : ""}><div className="font-display text-base font-semibold">StockSense</div><div className="text-[11px] text-muted-foreground">Inventory workspace</div></div><Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={() => setSidebar(false)}><X /></Button></div>
-        <div className={`px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground ${collapsed ? "lg:hidden" : ""}`}>Workspace</div><nav className={`flex-1 space-y-1 overflow-y-auto px-3 pb-4 ${collapsed ? "lg:pt-7" : ""}`}>{[...nav, ...(can.warehouses ? managerNav : [])].map((item) => <Button key={item.view} variant="ghost" title={item.label} className={`h-11 w-full justify-start gap-3 ${collapsed ? "lg:justify-center lg:px-0" : ""} ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon /><span className={collapsed ? "lg:hidden" : ""}>{item.label}</span></Button>)}</nav>
+        <div className={`px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-muted-foreground ${collapsed ? "lg:hidden" : ""}`}>Workspace</div><nav className={`flex-1 space-y-1 overflow-y-auto px-3 pb-4 ${collapsed ? "lg:pt-7" : ""}`}>{[...nav, ...(can.team ? managerNav : [])].map((item) => <Button key={item.view} variant="ghost" title={item.label} className={`h-11 w-full justify-start gap-3 ${collapsed ? "lg:justify-center lg:px-0" : ""} ${view === item.view ? "nav-active" : "text-muted-foreground"}`} onClick={() => { setView(item.view); setSidebar(false); }}><item.icon /><span className={collapsed ? "lg:hidden" : ""}>{item.label}</span></Button>)}</nav>
         <div className="border-t p-3"><Button variant="ghost" title={`${user.user_metadata['display_name'] || user.email} · ${role}`} className={`mb-1 h-auto w-full justify-start py-2 ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={() => setView("profile")}><UserRound /><span className={`min-w-0 text-left ${collapsed ? "lg:hidden" : ""}`}><span className="block truncate">{user.user_metadata['display_name'] || user.email}</span><span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{role}</span></span></Button><Button variant="ghost" title="Log out" className={`w-full justify-start text-muted-foreground ${collapsed ? "lg:justify-center lg:px-0" : ""}`} onClick={async () => { await supabase.auth.signOut(); }}><LogOut /><span className={collapsed ? "lg:hidden" : ""}>Log out</span></Button></div>
       </aside>
       {sidebar && <Button aria-label="Close menu" variant="ghost" className="fixed inset-0 z-30 h-auto w-full rounded-none bg-background/70 lg:hidden" onClick={() => setSidebar(false)} />}
@@ -170,7 +188,7 @@ export function InventoryApp() {
           {["receipts","deliveries","transfers","adjustments"].includes(view) && <Operations {...contentProps} kind={view === "receipts" ? "receipt" : view === "deliveries" ? "delivery" : view === "transfers" ? "transfer" : "adjustment"} />}
           {view === "history" && <HistoryView {...contentProps} />}
           {view === "warehouses" && <Warehouses {...contentProps} />}
-          {view === "team" && (can.warehouses ? <Team {...contentProps} /> : <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="size-4"/>{STAFF_LOCKED}</p>)}
+          {view === "team" && (can.team ? <Team {...contentProps} /> : <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="size-4"/>{OWNER_LOCKED}</p>)}
           {view === "profile" && <Profile user={user} workspace={workspace} role={role} />}
           {busy && <div className="modal-overlay fixed inset-0 z-50 grid place-items-center"><div className="modal-panel px-6 py-5 text-sm">Updating inventory…</div></div>}
         </div>
@@ -276,6 +294,12 @@ function PendingApproval({user,onRefresh}:{user:User;onRefresh:()=>Promise<void>
 }
 
 type Member = { user_id: string; role: string; display_name: string; email: string };
+const ROLE_SUMMARY: Record<string,string> = {
+  owner: "Runs the team: grants and revokes access, plus everything a manager can do.",
+  manager: "Runs operations: catalogue, warehouses, purchasing and reversals. Cannot change anyone's access.",
+  staff: "Records and validates movements. Cannot change the catalogue or reverse documents.",
+  pending: "No access to any stock data until you grant a role.",
+};
 /** Manager-only. Grants the role a newly registered account needs before it can see anything. */
 function Team({workspace,userId,load,setBusy,setError}:Common) {
   const [members,setMembers]=useState<Member[]>([]);
@@ -287,10 +311,14 @@ function Team({workspace,userId,load,setBusy,setError}:Common) {
     const {data:rows,error}=await supabase.from("workspace_members").select("user_id,role").eq("workspace_id",workspace.id);
     if(error){setError(error.message);setLoading(false);return;}
     const ids=(rows??[]).map(r=>r.user_id);
-    const {data:people}=ids.length?await supabase.from("profiles").select("id,display_name,email").in("id",ids):{data:[]};
+    // Reported rather than swallowed: when this query fails every row silently renders as
+    // "Unnamed user" with no email, which reads like missing data instead of a broken query.
+    const {data:people,error:peopleError}=ids.length?await supabase.from("profiles").select("id,display_name,email").in("id",ids):{data:[],error:null};
+    if(peopleError)setNotice({tone:"error",text:`Could not load names: ${peopleError.message}. If the email column is missing, run scripts/upgrade.sql.`});
     const byId=new Map((people??[]).map(p=>[p.id,p]));
+    const order=(r:string)=>r==="pending"?0:r==="owner"?1:r==="manager"?2:3;
     setMembers((rows??[]).map(r=>({user_id:r.user_id,role:r.role,display_name:byId.get(r.user_id)?.display_name||"Unnamed user",email:byId.get(r.user_id)?.email||""}))
-      .sort((a,b)=>(a.role==="pending"?0:1)-(b.role==="pending"?0:1)||a.display_name.localeCompare(b.display_name)));
+      .sort((a,b)=>order(a.role)-order(b.role)||a.display_name.localeCompare(b.display_name)));
     setLoading(false);
   },[workspace.id,setError]);
   useEffect(()=>{void refresh()},[refresh]);
@@ -314,10 +342,11 @@ function Team({workspace,userId,load,setBusy,setError}:Common) {
     {!loading&&members.map(m=><tr key={m.user_id}>
       <td><div className="font-medium">{m.display_name}{m.user_id===userId&&<span className="ml-2 text-xs text-muted-foreground">(you)</span>}</div></td>
       <td className="text-muted-foreground">{m.email||"—"}</td>
-      <td><span className={`tag ${m.role==="manager"?"tag-in":m.role==="staff"?"tag-draft":"tag-waiting"}`}>{m.role}</span></td>
-      <td><div className="max-w-64 whitespace-normal text-xs text-muted-foreground">{m.role==="manager"?"Full access, including the catalogue, warehouses, purchasing and reversals.":m.role==="staff"?"Records and validates movements. Cannot change the catalogue or reverse documents.":"No access to any stock data."}</div></td>
+      <td><span className={`tag ${m.role==="owner"?"tag-in":m.role==="manager"?"tag-ready":m.role==="staff"?"tag-draft":"tag-waiting"}`}>{m.role}</span></td>
+      <td><div className="max-w-64 whitespace-normal text-xs text-muted-foreground">{ROLE_SUMMARY[m.role]??"No access to any stock data."}</div></td>
       <td><div className="flex flex-wrap gap-2">
-        {m.role!=="manager"&&<Button size="sm" variant="outline" onClick={()=>apply(m,"manager")}><UserCheck/>Make manager</Button>}
+        {m.role!=="owner"&&<Button size="sm" variant="outline" title="Full access including team administration" onClick={()=>{if(window.confirm(`Make ${m.display_name} an owner? They will be able to change everyone's access, including yours.`))void apply(m,"owner")}}><UserCheck/>Make owner</Button>}
+        {m.role!=="manager"&&<Button size="sm" variant="outline" onClick={()=>apply(m,"manager")}><UserCheck/>{m.role==="pending"?"Approve as manager":"Make manager"}</Button>}
         {m.role!=="staff"&&<Button size="sm" variant="outline" onClick={()=>apply(m,"staff")}><UserCheck/>{m.role==="pending"?"Approve as staff":"Make staff"}</Button>}
         {m.role!=="pending"&&m.user_id!==userId&&<Button size="sm" variant="ghost" title="Revoke access, keep the account" onClick={()=>apply(m,"pending")}><Lock/>Revoke</Button>}
         {m.user_id!==userId&&<Button size="sm" variant="ghost" title="Remove from workspace" onClick={()=>{if(window.confirm(`Remove ${m.display_name}? Their recorded stock movements stay in the ledger.`))void apply(m,"remove")}}><UserMinus/></Button>}
@@ -326,7 +355,7 @@ function Team({workspace,userId,load,setBusy,setError}:Common) {
   </tbody></table></div>
   <div className="mt-5 max-w-3xl space-y-2 border-t pt-5 text-xs leading-5 text-muted-foreground">
     <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Share the invite code <strong className="font-mono text-primary">{workspace.join_code}</strong> so a new hire can request access. Registering alone gives nobody any visibility.</span></p>
-    <p><strong className="font-semibold text-foreground">Enforced in the database.</strong> Roles are checked by row-level security policies, so revoking someone takes effect on their next query whatever screen they happen to be on. A workspace always keeps at least one manager, and you cannot remove your own manager access.</p>
+    <p><strong className="font-semibold text-foreground">Enforced in the database.</strong> Roles are checked by row-level security policies, so revoking someone takes effect on their next query whatever screen they happen to be on. Only an owner can reach this screen — an operational manager cannot change anyone&rsquo;s access. A workspace always keeps at least one owner, and you cannot give away your own owner access.</p>
     <p><strong className="font-semibold text-foreground">Removing someone preserves history.</strong> Documents and ledger rows they recorded stay exactly as they are, because stock accounting has to stay auditable.</p>
   </div></>;
 }
@@ -492,8 +521,9 @@ function HistoryView({ledger,operations,actors,userId,workspace,balanceAt,can,lo
   <div className="panel table-wrap"><table className="data-table"><thead><tr><th>When</th><th>Reference</th><th>Type</th><th>Product</th><th>Location</th><th>Change</th><th>Balance</th><th>Who</th><th>Why</th><th>Correction</th></tr></thead><tbody>{visible.map(r=>{const op=operations.find(o=>o.id===r.operation_id);return <tr key={r.id}><td>{new Date(r.created_at).toLocaleString()}</td><td>{r.operations?.reference??"—"}</td><td className="capitalize">{r.operations?.kind??"—"}</td><td>{r.products?.name??"—"}<div className="text-xs text-muted-foreground">{r.products?.sku}</div></td><td>{r.locations?.name??"—"}</td><td className={Number(r.delta)>=0?"text-success":"text-destructive"}>{Number(r.delta)>=0?"+":""}{r.delta}</td><td>{r.balance_after}</td><td>{describeActor(r.created_by,actors,userId)}</td><td><div className="max-w-72 whitespace-normal text-xs">{describeWhy(r)}</div></td><td>{op?<ReverseButton workspace={workspace} operation={op} operations={operations} balanceAt={balanceAt} allowed={can.reverse} load={load} setBusy={setBusy} setError={setError}/>:null}</td></tr>})}{!visible.length&&<tr><td colSpan={10} className="text-muted-foreground">Validated inventory movements will appear here.</td></tr>}</tbody></table></div></>;
 }
 const ROLE_RIGHTS: Record<Role,{allowed:string[];denied:string[]}> = {
-  manager: { allowed: ["Create, edit and archive products","Add warehouses and stock locations","Record and validate every movement","Raise replenishment orders","Reverse validated documents"], denied: [] },
-  staff: { allowed: ["Record and validate receipts, deliveries, transfers and adjustments","View stock, replenishment advice and the full audit trail"], denied: ["Create, edit or archive products","Add warehouses or stock locations","Raise replenishment orders","Reverse validated documents"] },
+  owner: { allowed: ["Grant, revoke and remove team access","Create, edit and archive products","Add warehouses and stock locations","Record and validate every movement","Raise replenishment orders","Reverse validated documents"], denied: [] },
+  manager: { allowed: ["Create, edit and archive products","Add warehouses and stock locations","Record and validate every movement","Raise replenishment orders","Reverse validated documents"], denied: ["Grant, revoke or remove team access"] },
+  staff: { allowed: ["Record and validate receipts, deliveries, transfers and adjustments","View stock, replenishment advice and the full audit trail"], denied: ["Grant, revoke or remove team access","Create, edit or archive products","Add warehouses or stock locations","Raise replenishment orders","Reverse validated documents"] },
 };
 function Profile({user,workspace,role}:{user:User;workspace:Workspace;role:Role}) {
   const rights=ROLE_RIGHTS[role];
