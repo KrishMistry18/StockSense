@@ -2,6 +2,13 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* ---------------------------------------------------------------------------
+   StockSense — Charcoal & Ember
+   One set of semantic tokens drives both themes, so every screen switches
+   together. Depth comes from layered light (ambient gradients, translucent
+   surfaces, inner highlights) rather than from heavy borders.
+   --------------------------------------------------------------------------- */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -21,11 +28,12 @@
   --color-destructive-foreground: var(--foreground);
   --color-border: var(--border);
   --color-input: var(--border);
-  --color-ring: var(--primary);
+  --color-ring: var(--ring);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--foreground);
   --color-sidebar-primary: var(--primary);
@@ -33,82 +41,795 @@
   --color-sidebar-accent: var(--accent);
   --color-sidebar-accent-foreground: var(--foreground);
   --color-sidebar-border: var(--border);
-  --color-sidebar-ring: var(--primary);
+  --color-sidebar-ring: var(--ring);
   --font-sans: "Manrope", sans-serif;
   --font-display: "Sora", sans-serif;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 14px;
 }
 
 :root {
   color-scheme: dark;
-  --background: #1a1a1a;
-  --foreground: #e9e5e0;
-  --card: #242424;
-  --surface: #2d2d2d;
-  --sidebar: #1e1e1e;
-  --primary: #e85d3a;
-  --primary-foreground: #1a1a1a;
-  --secondary: #303030;
-  --muted: #303030;
-  --muted-foreground: #aba6a1;
-  --accent: #3b302d;
-  --border: #3b3b3b;
-  --destructive: #f07c78;
-  --success: #95c7a0;
-  --warning: #e8be83;
-  --info: #a7b9d5;
+  --background: #131211;
+  --foreground: #ece8e3;
+  --card: #1d1b1a;
+  --surface: #262322;
+  --elevated: #302c2a;
+  --sidebar: #171514;
+  --primary: #ea6340;
+  --primary-foreground: #150f0d;
+  --secondary: #2a2726;
+  --muted: #262322;
+  --muted-foreground: #a9a29c;
+  --accent: #33241f;
+  --border: #322e2c;
+  --border-strong: #423c39;
+  --ring: #ea6340;
+  --destructive: #f2827d;
+  --success: #8fcc9f;
+  --warning: #eabf85;
+  --info: #a6bcdc;
+
+  /* Ambient + elevation. Tuned separately per theme so neither mode looks washed. */
+  --ambient-warm: 20%;
+  --ambient-cool: 14%;
+  --ambient-lift: 10%;
+  --glass: 72%;
+  --sheen: rgba(255, 255, 255, 0.055);
+  --sheen-strong: rgba(255, 255, 255, 0.08);
+  --grain-opacity: 0.032;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 44px -12px rgba(0, 0, 0, 0.62);
+  --shadow-xl: 0 34px 80px -20px rgba(0, 0, 0, 0.72);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --background: #f6f5f3;
-  --foreground: #242323;
+  --background: #f7f5f2;
+  --foreground: #241f1d;
   --card: #ffffff;
-  --surface: #f1efec;
-  --sidebar: #eeece9;
-  --primary: #be4528;
+  --surface: #f2efea;
+  --elevated: #ffffff;
+  --sidebar: #f1ece6;
+  /* Deeper than the dark-mode ember so small uppercase labels clear 4.5:1 on the
+     light background with margin to spare (5.03:1) rather than scraping past it. */
+  --primary: #b74322;
   --primary-foreground: #ffffff;
-  --secondary: #e9e5e1;
-  --muted: #eae7e3;
-  --muted-foreground: #6e6965;
-  --accent: #f4dfd7;
-  --border: #dedad6;
-  --destructive: #bc3e3b;
-  --success: #32794a;
-  --warning: #9e641f;
-  --info: #4e688c;
+  --secondary: #eae5df;
+  --muted: #eee9e3;
+  --muted-foreground: #6b645f;
+  --accent: #f7e2d8;
+  --border: #ded8d1;
+  --border-strong: #cbc3ba;
+  --ring: #b74322;
+  --destructive: #b83a37;
+  --success: #2f7346;
+  --warning: #93601d;
+  --info: #4a6488;
+
+  --ambient-warm: 13%;
+  --ambient-cool: 9%;
+  --ambient-lift: 7%;
+  --glass: 78%;
+  --sheen: rgba(255, 255, 255, 0.7);
+  --sheen-strong: rgba(255, 255, 255, 0.9);
+  --grain-opacity: 0.02;
+  --shadow-sm: 0 1px 2px rgba(60, 45, 38, 0.06);
+  --shadow-md: 0 4px 16px -4px rgba(60, 45, 38, 0.1);
+  --shadow-lg: 0 18px 44px -12px rgba(60, 45, 38, 0.14);
+  --shadow-xl: 0 34px 80px -20px rgba(60, 45, 38, 0.18);
 }
 
 @layer base {
-  * { border-color: var(--border); }
-  body { margin: 0; background: var(--background); color: var(--foreground); font-family: "Manrope", sans-serif; }
-  h1, h2, h3, h4 { font-family: "Sora", sans-serif; letter-spacing: 0; }
-  button, input, select, textarea { font: inherit; }
-  input, select, textarea { outline: none; }
-  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Manrope", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Sora", sans-serif;
+    letter-spacing: -0.018em;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    outline: none;
+  }
+
+  /* Quantities and dates line up column to column, which matters on every table here. */
+  table,
+  .metric,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 32%, transparent);
+    color: var(--foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border: 3px solid transparent;
+    border-radius: 99px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--primary) 55%, var(--border-strong));
+    background-clip: content-box;
+  }
 }
 
-.field { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 7px; color: var(--foreground); background: var(--surface); transition: border-color .2s, box-shadow .2s; }
-.field:focus { box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent); }
-.field-search { padding-left: 38px; }
-.field::placeholder { color: var(--muted-foreground); }
-.field:disabled { opacity: .55; }
-.panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
-.table-wrap { width: 100%; overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
-.data-table th { background: var(--surface); color: var(--muted-foreground); font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 13px 16px; }
-.data-table td { padding: 14px 16px; border-top: 1px solid var(--border); font-size: 13px; }
-.data-table tr:hover td { background: color-mix(in oklch, var(--surface), transparent 55%); }
-.tag { display: inline-flex; align-items: center; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
-.tag-done, .tag-in { color: var(--success); background: color-mix(in oklch, var(--success), transparent 85%); }
-.tag-low, .tag-waiting { color: var(--warning); background: color-mix(in oklch, var(--warning), transparent 86%); }
-.tag-out, .tag-canceled { color: var(--destructive); background: color-mix(in oklch, var(--destructive), transparent 86%); }
-.tag-draft, .tag-ready { color: var(--info); background: color-mix(in oklch, var(--info), transparent 86%); }
-.auth-grid { background: var(--background); }
-.auth-surface { background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
-.metric { background: var(--card); border: 1px solid var(--border); border-radius: 8px; transition: border-color .2s, transform .2s; }
-.metric:hover { border-color: var(--primary); transform: translateY(-2px); }
-@media (prefers-reduced-motion: reduce) { .metric, .field { transition: none; } }
-@media (prefers-reduced-motion: no-preference) { .panel, .tag { animation: appear .28s ease-out both; } @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } } }
+/* ---------------------------------------------------------------------------
+   Ambient shells
+   The gradients are fixed to the viewport so they read as light in the room
+   rather than as decoration that scrolls with the content.
+   --------------------------------------------------------------------------- */
+
+.app-shell,
+.auth-grid {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      1100px 620px at 8% -8%,
+      color-mix(in oklab, var(--primary) var(--ambient-warm), transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      900px 700px at 102% 6%,
+      color-mix(in oklab, var(--info) var(--ambient-cool), transparent),
+      transparent 66%
+    ),
+    radial-gradient(
+      820px 560px at 52% 108%,
+      color-mix(in oklab, var(--warning) var(--ambient-lift), transparent),
+      transparent 68%
+    );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Fine grain stops the large gradients from banding on wide displays. */
+.app-shell::before,
+.auth-grid::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Slow drifting bloom, only on the sign-in screen where there is room for it. */
+.auth-grid::after {
+  content: "";
+  position: fixed;
+  top: -30vmax;
+  right: -20vmax;
+  width: 75vmax;
+  height: 75vmax;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in oklab, var(--primary) 26%, transparent),
+    color-mix(in oklab, var(--warning) 18%, transparent),
+    color-mix(in oklab, var(--info) 22%, transparent),
+    color-mix(in oklab, var(--primary) 26%, transparent)
+  );
+  filter: blur(90px);
+  opacity: 0.5;
+}
+
+.auth-surface {
+  position: relative;
+  background: color-mix(in oklab, var(--card) var(--glass), transparent);
+  backdrop-filter: blur(22px) saturate(135%);
+  border: 1px solid color-mix(in oklab, var(--border-strong) 85%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-xl),
+    inset 0 1px 0 var(--sheen-strong);
+}
+
+/* Ember hairline along the top edge of the sign-in card. */
+.auth-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--primary) 70%, transparent),
+    transparent
+  );
+}
+
+.app-sidebar {
+  background: color-mix(in oklab, var(--sidebar) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
+  border-right: 1px solid var(--border);
+}
+
+.app-header {
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(125%);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-mobile-nav {
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
+  border-top: 1px solid var(--border);
+}
+
+/* Active nav item: ember bar plus a soft wash instead of a flat fill. */
+.nav-active {
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--primary) 16%, transparent),
+    transparent 85%
+  );
+  color: var(--foreground);
+}
+
+.nav-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--primary) 70%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Surfaces
+   --------------------------------------------------------------------------- */
+
+.panel {
+  position: relative;
+  background: color-mix(in oklab, var(--card) var(--glass), transparent);
+  backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 var(--sheen);
+}
+
+.metric {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--card) var(--glass), transparent);
+  backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 var(--sheen);
+  transition:
+    border-color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* Light sweeps in from the corner on hover rather than the card just lifting. */
+.metric::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    420px 180px at 100% 0%,
+    color-mix(in oklab, var(--primary) 20%, transparent),
+    transparent 70%
+  );
+  transition: opacity 0.3s ease;
+}
+
+.metric:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 var(--sheen-strong);
+}
+
+.metric:hover::after {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Form controls
+   --------------------------------------------------------------------------- */
+
+.field {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 13px;
+  color: var(--foreground);
+  /* background-color, not the `background` shorthand: the shorthand would wipe the
+     custom dropdown arrow that `select.field` paints as a background-image. */
+  background-color: color-mix(in oklab, var(--surface) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.field:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.field:focus {
+  border-color: var(--primary);
+  background-color: color-mix(in oklab, var(--surface) 96%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent),
+    0 0 26px -6px color-mix(in oklab, var(--primary) 45%, transparent),
+    inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Flags a bad value on the field itself, since the browser's own bubble
+   (the "include an '@'" tooltip) cannot be styled. */
+.field:user-invalid {
+  border-color: var(--destructive);
+}
+
+.field:user-invalid:focus {
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--destructive) 22%, transparent),
+    inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Chrome paints autofilled inputs a hard blue that ignores the palette.
+   An inset shadow is the only reliable way to override it. */
+.field:-webkit-autofill,
+.field:-webkit-autofill:hover,
+.field:-webkit-autofill:focus,
+.field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: inset 0 0 0 100px var(--surface);
+  caret-color: var(--foreground);
+  /* Outlasts any plausible session, so the blue never flashes back in. */
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.field-search {
+  padding-left: 40px;
+}
+
+.field::placeholder {
+  color: color-mix(in oklab, var(--muted-foreground) 85%, transparent);
+}
+
+.field:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+select.field {
+  appearance: none;
+  padding-right: 38px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 19px) calc(50% + 2px),
+    calc(100% - 14px) calc(50% + 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+textarea.field {
+  min-height: 84px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables
+   --------------------------------------------------------------------------- */
+
+/* No border-radius here: `.panel.table-wrap` share one element, so `inherit` would
+   pull the parent's radius and square off every table panel. The panel owns the
+   radius and this overflow clips the table to it. */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in oklab, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 14px 16px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  font-size: 13px;
+}
+
+.data-table tbody tr {
+  transition: background-color 0.16s ease;
+}
+
+.data-table tbody tr:hover td {
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+}
+
+.data-table tbody tr:first-child td {
+  border-top: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Status tags
+   Ringed rather than flat-filled, so they read as labels on glass.
+   --------------------------------------------------------------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 99px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: capitalize;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted-foreground) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--muted-foreground) 24%, transparent);
+}
+
+.tag-done,
+.tag-in {
+  color: var(--success);
+  background: color-mix(in oklab, var(--success) 14%, transparent);
+  border-color: color-mix(in oklab, var(--success) 34%, transparent);
+}
+
+.tag-low,
+.tag-waiting {
+  color: var(--warning);
+  background: color-mix(in oklab, var(--warning) 14%, transparent);
+  border-color: color-mix(in oklab, var(--warning) 34%, transparent);
+}
+
+.tag-out,
+.tag-canceled {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 34%, transparent);
+}
+
+.tag-draft,
+.tag-ready {
+  color: var(--info);
+  background: color-mix(in oklab, var(--info) 14%, transparent);
+  border-color: color-mix(in oklab, var(--info) 34%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Modals
+   --------------------------------------------------------------------------- */
+
+.modal-overlay {
+  background: color-mix(in oklab, var(--background) 62%, transparent);
+  backdrop-filter: blur(10px) saturate(115%);
+}
+
+.modal-panel {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(26px) saturate(130%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-xl),
+    inset 0 1px 0 var(--sheen-strong);
+}
+
+/* ---------------------------------------------------------------------------
+   Inline notices
+   Errors read as errors; confirmations do not borrow the alarm colour.
+   --------------------------------------------------------------------------- */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.notice-error {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 11%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 34%, transparent);
+}
+
+.notice-info {
+  color: var(--info);
+  background: color-mix(in oklab, var(--info) 11%, transparent);
+  border-color: color-mix(in oklab, var(--info) 32%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Demo account cards
+   --------------------------------------------------------------------------- */
+
+.demo-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 62%, transparent);
+  backdrop-filter: blur(14px) saturate(120%);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 var(--sheen);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    background-color 0.22s ease;
+}
+
+.demo-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  background: color-mix(in oklab, var(--card) 80%, transparent);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 var(--sheen-strong);
+}
+
+.demo-card:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* All cards lock while one is signing in, so the others recede. */
+.demo-card:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+/* ...except the one actually being pressed, which stays lit and ember-bordered. */
+.demo-card-active:disabled {
+  opacity: 1;
+  border-color: color-mix(in oklab, var(--primary) 60%, var(--border));
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 var(--sheen-strong);
+}
+
+.demo-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-family: "Sora", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-foreground);
+  background: linear-gradient(
+    145deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary) 62%, var(--warning))
+  );
+  box-shadow: 0 0 18px -4px color-mix(in oklab, var(--primary) 70%, transparent);
+}
+
+.demo-cta {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+}
+
+/* Small ember accent so the eye lands on the section heading first. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.eyebrow::before {
+  content: "";
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--primary) 70%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+   Everything above degrades to a static, fully legible layout when the
+   visitor has asked for reduced motion.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel,
+  .metric,
+  .auth-surface {
+    animation: rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .auth-grid::after {
+    animation: drift 34s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift {
+    from {
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
+    to {
+      transform: translate3d(-7vmax, 6vmax, 0) rotate(180deg) scale(1.12);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric,
+  .field,
+  .data-table tbody tr,
+  .metric::after {
+    transition: none;
+  }
+
+  .metric:hover {
+    transform: none;
+  }
+}
+
+/* Blur is expensive to composite; drop it where the platform says to save power. */
+@media (prefers-reduced-transparency: reduce) {
+  .panel,
+  .metric,
+  .auth-surface,
+  .modal-panel,
+  .app-header,
+  .app-sidebar,
+  .app-mobile-nav,
+  .modal-overlay,
+  .data-table th {
+    backdrop-filter: none;
+    background: var(--card);
+  }
+
+  .app-shell,
+  .auth-grid {
+    background-image: none;
+  }
+
+  .auth-grid::after,
+  .app-shell::before,
+  .auth-grid::before {
+    display: none;
+  }
+}
+
+@media print {
+  .app-shell,
+  .auth-grid {
+    background: none;
+  }
+
+  .panel,
+  .metric,
+  .modal-panel {
+    backdrop-filter: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .app-sidebar,
+  .app-header,
+  .app-mobile-nav {
+    display: none;
+  }
+}
