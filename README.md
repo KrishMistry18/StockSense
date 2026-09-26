@@ -100,6 +100,68 @@ Schema lives in `drizzle/migrations` as plain SQL, applied in the order recorded
 `scripts/schema.sql` is generated from those migrations for one-shot setup. After adding a
 migration, regenerate it rather than editing it by hand.
 
+## Deploying
+
+`bun run build` emits a Cloudflare Workers bundle — nitro's default preset here is
+`cloudflare-module`, and it writes a ready `wrangler.json` — so Cloudflare is the path with no
+configuration to change.
+
+### Before you deploy
+
+1. Apply [`scripts/upgrade.sql`](scripts/upgrade.sql) if you haven't already.
+2. Delete the demo accounts (`admin`, `manager`, `staff`). Their password is committed to this
+   repository, so they are public credentials.
+3. Leave `VITE_ENABLE_DEMO_LOGINS` **unset**. It is off in production builds by default; setting it
+   would ship the demo password in the browser bundle.
+4. Rotate the service-role key in **Project Settings → API Keys** if it has ever been shared.
+5. Decide whether self-registration should stay open. Anyone can register, but a new account holds no
+   workspace membership and can read nothing until the owner grants a role.
+
+### Environment variables
+
+Build-time values are compiled into the browser bundle, so they must be present when the build runs,
+not only at runtime:
+
+| Variable | When | Purpose |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | build | Browser client |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | build | Browser client |
+| `SUPABASE_URL` | runtime | SSR and server functions |
+| `SUPABASE_PUBLISHABLE_KEY` | runtime | Auth middleware |
+| `SUPABASE_SERVICE_ROLE_KEY` | runtime | Registration only. **Never prefix with `VITE_`** |
+
+A `VITE_` prefix on the service-role key would publish a credential that bypasses every row-level
+security policy in the schema.
+
+### Cloudflare Workers
+
+```sh
+bun run build
+cd .output/server
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler deploy
+```
+
+Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` as plain vars and the service-role key as a
+secret. The generated `wrangler.json` already enables `nodejs_compat`, which is what exposes
+bindings through `process.env`.
+
+For git-driven deploys, connect the repository in the Cloudflare dashboard with build command
+`bun run build`, output directory `.output/public`, and the two `VITE_` values set as **build**
+variables.
+
+### Other hosts
+
+Nitro takes a preset override, so `NITRO_PRESET=vercel bun run build` (or `netlify`, or `node-server`
+for a container) retargets the same code. Only the Cloudflare path is exercised by the default build
+here, so treat the others as needing a test deploy.
+
+### After deploying
+
+Add the deployed origin to **Authentication → URL Configuration** in Supabase: set it as the Site URL
+and add `https://your-domain/reset-password` to Redirect URLs, or password recovery links will send
+people to the wrong place.
+
 ## Key concepts
 
 - **Operations** — receipts, deliveries, internal transfers, and adjustments. A document only moves
