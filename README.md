@@ -42,7 +42,19 @@ The app is not tied to any particular Supabase project. To run it on one you con
 3. From **Project Settings → API**, copy the project URL and keys into `.env`
    (see [`.env.example`](.env.example)).
 4. Optional demo accounts: `bun run scripts/create-demo-users.ts`
-5. `bun run dev`.
+5. Optional sample inventory: `bun run scripts/seed-mock-data.ts`
+6. `bun run dev`.
+
+Step 5 builds two warehouses, five locations, thirteen products and eight weeks of movement history.
+Every movement is posted through the real `advance_operation` RPC rather than written into
+`stock_balances` directly, so balances and the audit trail agree and the seeded data has to pass the
+same validation real users do. Demand patterns are deliberately mixed — steady, weekly, semi-regular,
+erratic, one-off and dormant — so the Replenishment screen shows all three confidence tiers and
+runways from three days to "no recent demand". Re-run with `--reset` to wipe and rebuild.
+
+> Restart the dev server after editing `.env`. Vite reads `VITE_*` variables only at startup, so a
+> running server keeps using the previous project — which shows up as "Invalid login credentials"
+> rather than as a configuration error.
 
 Step 4 creates `admin`, `manager`, and `staff`, password `StockSense#2026`, pre-confirmed so they
 work while email confirmation stays on for real sign-ups. Skip it and register an account instead if
